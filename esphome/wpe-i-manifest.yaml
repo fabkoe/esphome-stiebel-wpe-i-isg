@@ -8,7 +8,11 @@ esphome:
 esp32:
   board: esp32-s3-devkitc-1
   framework:
-    type: arduino
+    # esp-idf statt arduino: der arduino-Core lieferte vorkompilierte WLAN-
+    # Blobs, die mit ESP-IDF 5.5.5 (ESPHome 2026.7.3) nicht zusammenpassten
+    # -> Linkfehler in libwpa_supplicant.a (hostapd_send_eapol / wpa_sm_*).
+    # esp-idf baut den WLAN-/Supplicant-Stack konsistent aus dem Quellcode.
+    type: esp-idf
 
 wifi:
   ssid: !secret wifi_ssid
