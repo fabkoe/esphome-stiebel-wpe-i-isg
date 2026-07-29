@@ -133,8 +133,7 @@ HAUPTMENÜ
 | Prozessdaten S.1 | Verdampfer 21,6°C / Verdichtereintritt 28,0°C / Heißgas 27,6°C | – | offen |
 | Prozessdaten S.2 | Ölsumpf 37,8°C / ND 9,52bar / HD 9,41bar / Volumenstrom | – | offen |
 | Prozessdaten S.3 | Strom/Spannung Inverter, Ist/Solldrehzahl Verdichter | – | vermutlich WPE-I-spezifisch, nicht in Standard-Elster-Tabelle |
-| Wärmemenge (WP) | VD Heizen Summe 15,2 MWh etc. | `0x4F9A`/`0x4EFB` auf 0x514 | Wert-Bestätigung ausstehend |
-| Leistungsaufnahme | VD Heizen Summe 2,033 MWh etc. | `0x0805` auf 0x514 | Wert-Bestätigung ausstehend |
+| Wärmemenge / Leistungsaufnahme (WP) | VD/NHZ Heizen+WW Summen | ~~`0x4F9A`/`0x4EFB`/`0x0805` auf 0x514~~ **verworfen** | ✅ **bestätigt** über Block `0x091a–0x0931` auf CAN-ID 0x500 – siehe Abschnitt „Energiewerte / Zähler" |
 | Laufzeit/Starts | Passivkühlung 4000h | `0x025A`/`0x0259` | Wert-Bestätigung ausstehend |
 | Mischermodul-Wert | – | `0x4EB4` auf 0x601, ~19,1-19,2°C | vermutlich Vorlauf HK2 |
 | Status-Flags | – | `0x0074` auf 0x480 (val=1), `0x4EB3` auf 0x401/0x100 (val=1) | Bedeutung unklar (Betriebsstatus?) |
@@ -307,6 +306,55 @@ Zeitfaktor ist die Geräteverifikation der neuen Indizes im Framework-Pfad.
   klein, modellübergreifend, hohe Annahmechance. (2) **WPE-I-Modell als
   PR** erst nach Geräteverifikation (v. a. `0xFDF3` + FET-Adressierung).
 
+## Energiewerte / Zähler ✅ bestätigt (29.07.2026)
+
+Aufgespürt mit dem beschrifteten Sniffer (`ha-stiebel-control`), der diesen
+Block bereits pollt. Zuordnung **display-verifiziert** über zwei unabhängige
+Wege (Magnitude + COP-Gegencheck aus `Info → Energiebilanz → Gesamtsystem`,
+siehe unten). Die alten Kandidaten (`0x4F9A`/`0x0805` auf 0x514) sind damit
+**verworfen**.
+
+**Modul: Heizmodul, Antwort auf CAN-ID `0x500`** (paarweise mit 0x700).
+Erweiterte Indizes (`0xFA`-Frames). Jeder Zähler ist auf **mehrere Register
+gesplittet** (Stiebel-Standard):
+
+- Summen: `…_SUM_MWH` (ganze MWh) **+** `…_SUM_KWH` (0–999 kWh, Nachkomma)
+  → realer Wert `kWh = SUM_MWH × 1000 + SUM_KWH`
+- Tageswerte: `…_TAG_KWH` (ganze kWh) **+** `…_TAG_WH` (0–999 Wh)
+
+`2WE` = „zweiter Wärmeerzeuger" = die elektrische **NHZ**-Nacherwärmung.
+
+| Zweig | MWh-Index (Summe) | kWh-Index (Summe) | TAG (kWh / Wh) |
+|---|---|---|---|
+| Wärmeertrag Heizen (VD) | `0x0931` | `0x0930` | `0x092f` / `0x092e` |
+| Wärmeertrag WW (VD) | `0x092d` | `0x092c` | `0x092b` / `0x092a` |
+| Wärmeertrag NHZ Heizen (2WE) | `0x0929` | `0x0928` | `0x0927` / `0x0926` |
+| Wärmeertrag NHZ WW (2WE) | `0x0925` | `0x0924` | `0x0923` / `0x0922` |
+| El. Aufnahme Heizen (VD) | `0x0921` | `0x0920` | `0x091f` / `0x091e` |
+| El. Aufnahme WW (VD) | `0x091d` | `0x091c` | `0x091b` / `0x091a` |
+
+**Live gelesene Ist-Werte (18:28–18:30, nur MWh-Register):** WAERMEERTRAG_HEIZ
+= 14, _WW = 9, EL_AUFNAHME_HEIZ = 2, _WW = 2 MWh. TAG-Burst (bei Screen-Aufruf
+broadcastet): WW-Wärme heute 6,966 kWh, WW-Strom heute 1,255 kWh → Tages-COP ~5,5.
+
+**Verifikation (Display, `Info → Energiebilanz → Gesamtsystem`, 29.07.2026):**
+Der Screen ist in sich konsistent (WW 13–24 M: 4,00 MWh Wärme ÷ 4,18 COP =
+0,957 MWh Strom = abgelesene 0,956 MWh ✓). Die all-time-Summen des Sniffers
+liegen erwartungsgemäß knapp über den 24-Monats-Fenstern (Heizen 14 ≥ 13,68;
+WW 9 ≥ 8,28; El-Heiz 2 ≥ 1,84; El-WW 2 ≥ 1,95). COP Heizen 14/2 = 7,0 (Display
+7,3–7,6), WW 9/2 = 4,5 (Display 4,2–5,5). Passt.
+
+**Bonus-Screen noch offen:** `Info → Energiebilanz → Gesamtsystem` selbst
+(Gesamtwärmemenge/-stromverbrauch/-effizienz je 1–12 M / 13–24 M) sind
+**eigene** Indizes (Gesamtsystem inkl. NHZ, nach Zeitfenster) – noch nicht
+zugeordnet, wären aber schöne HA-Sensoren. Kandidaten: `et_double_val`/
+`et_triple_val`-Einträge in der ElsterTable.
+
+**Offen für Produktiv-Manifest:** Für die Nachkommastellen müssen `SUM_KWH`
+mitgepollt und mit `SUM_MWH` kombiniert werden (Basissatz pollt nur `SUM_MWH`).
+Request-Header für 0x500-Ziel über unseren 0x680-Kanal noch zu ermitteln
+(Sniffer fragt über 0x500 selbst an: `a1 00 fa 09 21 00 00`).
+
 ## TODOs
 
 ### Als Nächstes (priorisiert)
@@ -330,8 +378,10 @@ Zeitfaktor ist die Geräteverifikation der neuen Indizes im Framework-Pfad.
 - [ ] Prozessdaten S.1 bestätigen: Verdampfer, Verdichtereintritt, Heißgas
 - [ ] Prozessdaten S.2 bestätigen: Ölsumpf, Druck ND/HD, Volumenstrom
 - [ ] Prozessdaten S.3 bestätigen: Strom/Spannung Inverter, Ist-/Solldrehzahl Verdichter (vermutlich WPE-I-spezifisch, ggf. nicht in Standard-Elster-Tabelle)
-- [ ] Wärmemenge (Wärmepumpe) bestätigen – Kandidaten `0x4F9A`/`0x4EFB` auf 0x514
-- [ ] Leistungsaufnahme bestätigen – Kandidat `0x0805` auf 0x514
+- [x] **Wärmemenge + Leistungsaufnahme (WP) bestätigt** – Block `0x091a–0x0931` auf 0x500 (Sniffer + Display-Gegencheck), siehe Abschnitt „Energiewerte / Zähler". Alte Kandidaten `0x4F9A`/`0x0805` auf 0x514 verworfen.
+  - [ ] `SUM_KWH`-Register (`0x0920`/`0x091c`/`0x0924`/`0x0928`/`0x092c`/`0x0930`) mitpollen und mit `SUM_MWH` kombinieren (Nachkommastellen)
+  - [ ] Request-Header für 0x500-Ziel über 0x680 ermitteln, dann Energiezähler ins Produktiv-Manifest übernehmen (HA: device_class energy, state_class total_increasing)
+  - [ ] Gesamtsystem-Screen (`Info → Energiebilanz → Gesamtsystem`) eigene Indizes zuordnen (Gesamtwärmemenge/-strom/-effizienz je 12-Monats-Fenster)
 - [ ] Laufzeit/Starts bestätigen – Kandidaten `0x025A`/`0x0259`
 - [ ] Mischermodul-Wert (`0x4EB4` auf 0x601, ~19,1–19,2°C) einer konkreten Bedeutung zuordnen (vermutlich Vorlauf HK2)
 - [ ] Status-Flags klären: `0x0074` auf 0x480, `0x4EB3` auf 0x401/0x100 (beide val=1 gesehen – Betriebsstatus?)
