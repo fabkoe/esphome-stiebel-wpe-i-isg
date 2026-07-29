@@ -99,6 +99,23 @@ globals:
     type: int16_t
     restore_value: false
     initial_value: '0'
+  # Gesamtsystem 1-12M (Manager 0x480): MWh-Teil zwischenspeichern.
+  - id: g_gs_wm_heiz_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_gs_wm_ww_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_gs_strom_heiz_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_gs_strom_ww_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
 
 sensor:
   - platform: template
@@ -256,6 +273,42 @@ sensor:
     unit_of_measurement: "kWh"
     device_class: energy
     state_class: total_increasing
+    accuracy_decimals: 0
+
+  # --- Gesamtsystem-Energiebilanz, rollende letzte 12 Monate (Manager 0x480) ---
+  # Kombiniert MWh+kWh. Rollendes Fenster -> state_class measurement (kann
+  # sinken, daher NICHT total_increasing). Display-verifiziert 29.07.2026
+  # (Info->Energiebilanz->Gesamtsystem). COP wird HA-seitig berechnet.
+  - platform: template
+    name: "Gesamt Waermemenge Heizen 12M"
+    id: gs_wm_heiz
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    name: "Gesamt Waermemenge Warmwasser 12M"
+    id: gs_wm_ww
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    name: "Gesamt Stromverbrauch Heizen 12M"
+    id: gs_strom_heiz
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: measurement
+    accuracy_decimals: 0
+
+  - platform: template
+    name: "Gesamt Stromverbrauch Warmwasser 12M"
+    id: gs_strom_ww
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: measurement
     accuracy_decimals: 0
 
 text_sensor:
@@ -421,6 +474,29 @@ canbus:
                 id(el_ww_vd).publish_state((float)id(g_el_ww_vd_mwh) * 1000.0f + val);
               }
 
+              // --- GESAMTSYSTEM 1-12M (Energiebilanz) auf CAN-ID 0x480 (Manager) ---
+              // MWh+kWh kombiniert, rollendes 12-Monats-Fenster.
+              // Waermemenge Heizen: MWh 0x5007 / kWh 0x5008
+              if (idx == 0x5007 && can_id == 0x480) { id(g_gs_wm_heiz_mwh) = val; }
+              if (idx == 0x5008 && can_id == 0x480) {
+                id(gs_wm_heiz).publish_state((float)id(g_gs_wm_heiz_mwh) * 1000.0f + val);
+              }
+              // Waermemenge Warmwasser: MWh 0x500F / kWh 0x5010
+              if (idx == 0x500F && can_id == 0x480) { id(g_gs_wm_ww_mwh) = val; }
+              if (idx == 0x5010 && can_id == 0x480) {
+                id(gs_wm_ww).publish_state((float)id(g_gs_wm_ww_mwh) * 1000.0f + val);
+              }
+              // Stromverbrauch Heizen: MWh 0x5013 / kWh 0x5014
+              if (idx == 0x5013 && can_id == 0x480) { id(g_gs_strom_heiz_mwh) = val; }
+              if (idx == 0x5014 && can_id == 0x480) {
+                id(gs_strom_heiz).publish_state((float)id(g_gs_strom_heiz_mwh) * 1000.0f + val);
+              }
+              // Stromverbrauch Warmwasser: MWh 0x501B / kWh 0x501C
+              if (idx == 0x501B && can_id == 0x480) { id(g_gs_strom_ww_mwh) = val; }
+              if (idx == 0x501C && can_id == 0x480) {
+                id(gs_strom_ww).publish_state((float)id(g_gs_strom_ww_mwh) * 1000.0f + val);
+              }
+
               // Rohdaten weiterhin ins Log, falls wir spaeter noch was
               // Unbekanntes nachverfolgen wollen
               ESP_LOGD("wpe_i", "id=0x%03X idx=0x%04X val=%d", can_id, idx, val);
@@ -504,6 +580,39 @@ interval:
           std::vector<uint8_t> r_mwh = {0xA1, 0x00, 0xFA, 0x09, 0x1D, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, r_mwh);
           std::vector<uint8_t> r_kwh = {0xA1, 0x00, 0xFA, 0x09, 0x1C, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+
+  # --- Gesamtsystem-Energiebilanz 1-12M (Manager 0x480) ueber 0x680 ---
+  # Jahreswerte aendern sich langsam -> eigener, langsamer Poll (300s).
+  # Header 91 00 = generate_read_id(0x480). Pro Wert zuerst MWh, dann kWh.
+  - interval: 300s
+    then:
+      - lambda: |-
+          // Gesamt Waermemenge Heizen (MWh 0x5007 + kWh 0x5008)
+          std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x07, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x08, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Gesamt Waermemenge Warmwasser (MWh 0x500F + kWh 0x5010)
+          std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x0F, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x10, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Gesamt Stromverbrauch Heizen (MWh 0x5013 + kWh 0x5014)
+          std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x13, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x14, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Gesamt Stromverbrauch Warmwasser (MWh 0x501B + kWh 0x501C)
+          std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x1B, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x1C, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, r_kwh);
 
 # =========================================================================
