@@ -1,6 +1,6 @@
 # Stiebel Eltron WPE-I 06 HKW 230 Premium – CAN-Bus Reverse Engineering
 
-Stand: 21.07.2026
+Stand: 29.07.2026
 
 ## Ausgangslage
 
@@ -261,6 +261,51 @@ Im Unterschied zu reinen Leseanfragen (bisher nur `A1`/`41`-Header über CAN 0x6
 2. **Natürliches Set-Telegramm mitschneiden**, während der Wert manuell am Display geändert wird (wie beim WW-Soll-Test 45→40°C) – daraus das exakte Byte-Format ableiten, das die WPM selbst beim Setzen nutzt
 3. **Erst danach** einen Schreib-Service in ESPHome ergänzen (z. B. als `number`/`select`-Entity in Home Assistant), mit sinnvollen Min/Max-Grenzen im Code gegen Fehleingaben
 4. Betriebsart-Wechsel testweise nur kurz (Sekunden), nicht dauerhaft auf "Bereitschaft" stehen lassen – pausiert sonst Heizen/Kühlen/Warmwasser
+
+## PoC: Framework `bullitt186/ha-stiebel-control` (29.07.2026)
+
+Getestet, ob das Fremd-Framework (ESPHome, gleiches Elster-Protokoll,
+Zielbaureihen WPL/WPF) mit der WPE-I funktioniert. Firmware v2.1.1 auf
+die eigene Hardware geflasht, **Bitrate von 20 auf 50 kbps** geändert
+(einzige zwingende Anpassung), am Bus mitgelesen.
+
+**Ergebnis: Fundament kompatibel.** Der generische Decoder liest die
+WPE-I bei 50 kbps korrekt – **display-verifiziert**: `AUSSENTEMP 32.4 °C`,
+`SPEICHERISTTEMP 38.2 °C` (WW-Ist), `EVU_SPERRE_AKTIV on`, Uhrzeit. Damit
+sind 50 kbps + Protokoll + Frame-Format erneut bestätigt.
+
+**Aber nicht plug-and-play – zwei Lücken:**
+
+1. **Kein Anfrage/Antwort-Filter (Framework-Bug, alle Modelle betroffen).**
+   Frames wie `OTHER (0x00): AUSSENTEMP: 0.0` = mitgelesene Lese-Anfragen
+   (Wertefeld 0), die das Framework nicht von Antworten unterscheidet →
+   Werte flattern auf 0. Genau der Fix, den unser Manifest über das
+   Cmd-unteres-Halbbyte (`1`=Anfrage) schon hat. Fundstelle:
+   `ha-stiebel-control.h`, `processCanMessage()` (prüft `msg[0]` nie).
+2. **WPE-I-Indizes fehlen.** Nur **4 von 13** bestätigten Indizes sind in
+   der `ElsterTable.h` (Außentemp, WW-Ist, WW-Soll, Rücklauf). Der ganze
+   **`0x4Exx`/`0x4Fxx`-Block (8 Werte)** – Betriebsart, Heizkurve,
+   Komfort/Eco-Temp, FET-Raumtemp/-feuchte, Meldungslisten – **fehlt**.
+   Zusätzlich: `0xFDF3` (WP-Vorlauf) ist als `STATUS_MULTIFUNKTIONSAUSGANG`
+   **falsch belegt** (unskaliert), und die Betriebsart wird als
+   `PROGRAMMSCHALTER 0x0112` gepollt statt über unser `0x4F1B`.
+
+**Draft:** `../ha-stiebel-control-poc/esphome/ha-stiebel-control/signal_requests_wpei.h`
+(nach `wpf10`-Muster, ungetestet) inkl. Vorschlag für die
+ElsterTable-Ergänzungen.
+
+**Aufwand:** reiner Code ~3–4 h (8 ElsterTable-Einträge, `0xFDF3` lösen,
+Anfrage-Filter, `wpei.yaml`, optional CanMember 0x401 für FET). Der
+Zeitfaktor ist die Geräteverifikation der neuen Indizes im Framework-Pfad.
+
+**Entscheidung / Strategie:**
+- **Produktivbasis bleibt dieses `wpe-i-manifest.yaml`** (Kontrolle,
+  verifizierte Schreibformate, Anfrage-Filter, WPE-I-Indizes vorhanden).
+- Framework = **RE-Werkzeug** (beschrifteter Sniffer + ElsterTable-Lookup
+  für offene Werte) und **Community-Backup**, kein Ersatz.
+- Beitragswege (gestaffelt): (1) **Anfrage/Antwort-Bugfix als PR** –
+  klein, modellübergreifend, hohe Annahmechance. (2) **WPE-I-Modell als
+  PR** erst nach Geräteverifikation (v. a. `0xFDF3` + FET-Adressierung).
 
 ## TODOs
 
