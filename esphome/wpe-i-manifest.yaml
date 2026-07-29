@@ -1,0 +1,450 @@
+substitutions:
+  can_bitrate: "50kbps"
+
+esphome:
+  name: wpe-i-heatpump
+  friendly_name: WPE-I Waermepumpe
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+logger:
+  level: DEBUG
+
+api:
+
+ota:
+  platform: esphome
+
+# =========================================================================
+# Stiebel Eltron WPE-I 06 HKW 230 Premium - Elster/Kromschroeder-Protokoll
+# Reverse-engineered Werte (Stand: 17.07.2026), Referenz:
+# http://juerg5524.ch/data/ElsterTable.inc
+#
+# Frame-Format (7 Byte Nutzdaten):
+#   Kurzer Index (<=0xFF):     [Cmd][00][Idx][Wert_hi][Wert_lo][00][00]
+#   Erweiterter Index (>0xFF): [Cmd][00][FA][Idx_hi][Idx_lo][Wert_hi][Wert_lo]
+#
+# Bestaetigte Zuordnungen:
+#   AUSSENTEMP                 Index 0x000C  CAN 0x180/0x100        /10 =>degC
+#   SPEICHERISTTEMP (WW-Ist)   Index 0x000E  CAN 0x180/0x100/0x201  /10 =>degC
+#   EINSTELL_SPEICHERSOLLTEMP  Index 0x0013  CAN 0x100/0x201        /10 =>degC
+#   RUECKLAUFISTTEMP           Index 0x0016  CAN 0x514              /10 =>degC
+#   MELDUNGSLISTE (Anlage)     Index 0x4F0B  CAN 0x100              Ganzzahl
+#   MELDUNGSLISTE (Waermepumpe)Index 0x4F0C  CAN 0x480              Ganzzahl
+#   VORLAUFISTTEMP WP          Index 0xFDF3  CAN 0x700/0x500        /10 =>degC
+#   RAUMTEMPERATUR (Fernfuehl.)Index 0x4EC7  CAN 0x401              /10 =>degC
+#   RAUMLUFTFEUCHTE (Fernfuehl)Index 0x4EC8  CAN 0x401              /10 =>%
+#   BETRIEBSART                Index 0x4F1B  CAN 0x100/0x480        1=Bereitschaft,2=Programm,
+#                                                                    3=Komfort,4=Eco,5=Warmwasser,6=Not
+#   STEIGUNG HEIZKURVE         Index 0x4F2B  CAN 0x100/0x601        /100 => Steigung (z.B. 40=>0,40)
+#   KOMFORTTEMPERATUR (HK)     Index 0x4EB8  CAN 0x100/0x601        /10 =>degC
+#   ECO-TEMPERATUR (HK)        Index 0x4EB9  CAN 0x100/0x601        /10 =>degC
+#
+# Aktives Polling: RUECKLAUFISTTEMP und WW-SOLL werden nur bei
+# Menue-Aufruf am WPM oder Wertaenderung gesendet. Damit wir nicht
+# ans Display gehen muessen, fragen wir sie selbst periodisch ab,
+# ueber CAN-ID 0x680 ("PC"/ComfortSoft-Kanal, laut Doku fuer externe
+# Tools reserviert und bei uns unbenutzt -> keine Kollision mit
+# echten Geraeten auf dem Bus).
+# =========================================================================
+
+globals:
+  - id: frame_count
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: last_betriebsart
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: last_steigung_heizkurve
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+
+sensor:
+  - platform: template
+    name: "CAN Frame Count"
+    id: can_frame_count
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: 'return id(frame_count);'
+
+  - platform: template
+    name: "Aussentemperatur"
+    id: aussentemperatur
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Warmwasser Isttemperatur"
+    id: ww_isttemperatur
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Warmwasser Solltemperatur"
+    id: ww_solltemperatur
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Ruecklauftemperatur"
+    id: ruecklauftemperatur
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Meldungsliste Anlage"
+    id: meldungsliste_anlage
+    accuracy_decimals: 0
+    entity_category: diagnostic
+
+  - platform: template
+    name: "Meldungsliste Waermepumpe"
+    id: meldungsliste_wp
+    accuracy_decimals: 0
+    entity_category: diagnostic
+
+  - platform: template
+    name: "Vorlauftemperatur Waermepumpe"
+    id: vorlauftemperatur_wp
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Raumtemperatur"
+    id: raumtemperatur
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Raumluftfeuchte"
+    id: raumluftfeuchte
+    unit_of_measurement: "%"
+    device_class: humidity
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Betriebsart Code"
+    id: betriebsart_code
+    accuracy_decimals: 0
+    entity_category: diagnostic
+
+  - platform: template
+    name: "Steigung Heizkurve"
+    id: steigung_heizkurve
+    accuracy_decimals: 2
+    state_class: measurement
+
+  - platform: template
+    name: "Komforttemperatur Heizkreis"
+    id: komforttemperatur_hk
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Eco-Temperatur Heizkreis"
+    id: ecotemperatur_hk
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+text_sensor:
+  - platform: template
+    name: "Betriebsart"
+    id: betriebsart_text
+
+canbus:
+  - platform: esp32_can
+    id: my_canbus
+    tx_pin: GPIO15
+    rx_pin: GPIO16
+    can_id: 0
+    bit_rate: ${can_bitrate}
+    on_frame:
+      - can_id: 0
+        can_id_mask: 0
+        use_extended_id: false
+        then:
+          - lambda: |-
+              id(frame_count) += 1;
+
+              if (x.size() < 7) return;
+
+              // WICHTIG (Fix 21.07.2026): Lese-ANFRAGEN enthalten im
+              // Wertefeld immer 0 und duerfen NICHT als Messwert publiziert
+              // werden. Anfragen erkennt man am unteren Halbbyte des
+              // Cmd-Bytes == 1 (z.B. 0x41, 0xA1, 0x91, 0x31). Antworten/
+              // Broadcasts haben dort 0 oder 2 (z.B. 0x22, 0x20, 0x80).
+              // Ohne diesen Filter sprangen Sensoren sporadisch auf 0,
+              // sobald die WPM intern denselben Index angefragt hat.
+              if ((x[0] & 0x0F) == 0x01) return;
+
+              // Cmd-Byte wird für uns nicht gebraucht, nur Index+Wert
+              uint16_t idx;
+              int16_t val;
+
+              if (x[2] == 0xFA) {
+                // Erweiterter Index: Byte 3-4 = Index, Byte 5-6 = Wert
+                idx = (x[3] << 8) | x[4];
+                val = (int16_t)((x[5] << 8) | x[6]);
+              } else {
+                // Kurzer Index: Byte 2 = Index, Byte 3-4 = Wert
+                idx = x[2];
+                val = (int16_t)((x[3] << 8) | x[4]);
+              }
+
+              // --- AUSSENTEMP: Index 0x000C auf 0x180 oder 0x100 ---
+              if (idx == 0x000C && (can_id == 0x180 || can_id == 0x100)) {
+                id(aussentemperatur).publish_state(val / 10.0f);
+              }
+
+              // --- SPEICHERISTTEMP (WW-Ist): Index 0x000E auf 0x180/0x100/0x201 ---
+              if (idx == 0x000E && (can_id == 0x180 || can_id == 0x100 || can_id == 0x201)) {
+                id(ww_isttemperatur).publish_state(val / 10.0f);
+              }
+
+              // --- EINSTELL_SPEICHERSOLLTEMP: Index 0x0013 auf 0x100/0x201 ---
+              if (idx == 0x0013 && (can_id == 0x100 || can_id == 0x201)) {
+                id(ww_solltemperatur).publish_state(val / 10.0f);
+              }
+
+              // --- RUECKLAUFISTTEMP: Index 0x0016 auf 0x514 ---
+              if (idx == 0x0016 && can_id == 0x514) {
+                id(ruecklauftemperatur).publish_state(val / 10.0f);
+              }
+
+              // --- MELDUNGSLISTE: Index 0x4F0B (Anlage) / 0x4F0C (Waermepumpe) ---
+              if (idx == 0x4F0B && can_id == 0x100) {
+                id(meldungsliste_anlage).publish_state(val);
+              }
+              if (idx == 0x4F0C && can_id == 0x480) {
+                id(meldungsliste_wp).publish_state(val);
+              }
+
+              // --- VORLAUFISTTEMP WP: Index 0xFDF3 auf 0x700/0x500 ---
+              if (idx == 0xFDF3 && (can_id == 0x700 || can_id == 0x500)) {
+                id(vorlauftemperatur_wp).publish_state(val / 10.0f);
+              }
+
+              // --- RAUMTEMPERATUR / RAUMLUFTFEUCHTE: Index 0x4EC7/0x4EC8 auf 0x401 ---
+              if (idx == 0x4EC7 && can_id == 0x401) {
+                id(raumtemperatur).publish_state(val / 10.0f);
+              }
+              if (idx == 0x4EC8 && can_id == 0x401) {
+                id(raumluftfeuchte).publish_state(val / 10.0f);
+              }
+
+              // --- BETRIEBSART: Index 0x4F1B auf 0x100/0x480 ---
+              // 1=Bereitschaft, 2=Programm, 3=Komfort, 4=Eco, 5=Warmwasser, 6=Not
+              if (idx == 0x4F1B && (can_id == 0x100 || can_id == 0x480)) {
+                id(betriebsart_code).publish_state(val);
+                id(last_betriebsart) = val;
+                std::string mode_name;
+                switch (val) {
+                  case 1: mode_name = "Bereitschaftsbetrieb"; break;
+                  case 2: mode_name = "Programmbetrieb"; break;
+                  case 3: mode_name = "Komfortbetrieb"; break;
+                  case 4: mode_name = "Eco-Betrieb"; break;
+                  case 5: mode_name = "Warmwasserbetrieb"; break;
+                  case 6: mode_name = "Not-Betrieb"; break;
+                  default: mode_name = "Unbekannt (" + std::to_string(val) + ")"; break;
+                }
+                id(betriebsart_text).publish_state(mode_name);
+                // Dropdown nur bei den 5 steuerbaren Optionen mitziehen
+                // (Not-Betrieb ist bewusst nicht im select enthalten)
+                if (val >= 1 && val <= 5) {
+                  id(betriebsart_select).publish_state(mode_name);
+                }
+              }
+
+              // --- STEIGUNG HEIZKURVE: Index 0x4F2B auf 0x100/0x601 ---
+              if (idx == 0x4F2B && (can_id == 0x100 || can_id == 0x601)) {
+                id(steigung_heizkurve).publish_state(val / 100.0f);
+                id(last_steigung_heizkurve) = val;
+                id(steigung_heizkurve_set).publish_state(val / 100.0f);
+              }
+
+              // --- KOMFORTTEMPERATUR / ECO-TEMPERATUR Heizkreis: Index 0x4EB8/0x4EB9 auf 0x100/0x601 ---
+              // Nur lesend! Schreib-Versuch am 21.07.2026 fehlgeschlagen
+              // (Anlage antwortete mit val=0 statt Bestaetigung - vermutlich
+              // falsches Schreibformat fuer diese Indizes). Erstmal wieder
+              // read-only, bis das Format besser verstanden ist.
+              if (idx == 0x4EB8 && (can_id == 0x100 || can_id == 0x601)) {
+                id(komforttemperatur_hk).publish_state(val / 10.0f);
+              }
+              if (idx == 0x4EB9 && (can_id == 0x100 || can_id == 0x601)) {
+                id(ecotemperatur_hk).publish_state(val / 10.0f);
+              }
+
+              // Rohdaten weiterhin ins Log, falls wir spaeter noch was
+              // Unbekanntes nachverfolgen wollen
+              ESP_LOGD("wpe_i", "id=0x%03X idx=0x%04X val=%d", can_id, idx, val);
+
+              // TEMPORAER: zusaetzlich rohe Hex-Bytes loggen, um den
+              // Schreib-Header (Byte0) bei echten Set-Befehlen zu sehen
+              // (fuer Komforttemperatur-Schreib-Untersuchung 21.07.2026)
+              char hexdump[32] = {0};
+              char b[4];
+              for (size_t i = 0; i < x.size(); i++) {
+                sprintf(b, "%02X ", x[i]);
+                strcat(hexdump, b);
+              }
+              ESP_LOGD("wpe_i_raw", "id=0x%03X raw=%s", can_id, hexdump);
+
+# Aktives Polling ueber den PC/ComfortSoft-Kanal (0x680)
+interval:
+  - interval: 60s
+    then:
+      - lambda: |-
+          // Anfrage RUECKLAUFISTTEMP (Index 0x16, kurzer Index)
+          std::vector<uint8_t> req_ruecklauf = {0xA1, 0x14, 0x16, 0x00, 0x00, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, req_ruecklauf);
+      - delay: 200ms
+      - lambda: |-
+          // Anfrage EINSTELL_SPEICHERSOLLTEMP (Index 0x13, kurzer Index)
+          // Header 41 01 ist das echte, im Log beobachtete Anfragemuster
+          // (die WPM selbst nutzt CAN-ID 0x100 dafuer - das vermeiden wir
+          // wegen Kollisionsgefahr und bleiben bei unserer freien 0x680)
+          std::vector<uint8_t> req_wwsoll = {0x41, 0x01, 0x13, 0x00, 0x00, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, req_wwsoll);
+      - delay: 200ms
+      - lambda: |-
+          // Anfrage BETRIEBSART (Index 0x4F1B, erweiterter Index -> FA-Praefix)
+          // Gleicher Header 41 01 wie bei WW-Soll, hier zusaetzlich mit
+          // FA-Marker + 2-Byte-Index statt kurzem 1-Byte-Index
+          std::vector<uint8_t> req_betriebsart = {0x41, 0x01, 0xFA, 0x4F, 0x1B, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, req_betriebsart);
+
+# =========================================================================
+# EXPERIMENTELL: Schreib-Test fuer Betriebsart (Index 0x4F1B)
+#
+# Format basiert auf einem dokumentierten Schreib-Beispiel fuer einen
+# anderen Elster-Index (PROGRAMMSCHALTER 0x0112) aus dem KNX-User-Forum:
+#   680: 32 00 fa 01 12 02 00
+#   "Die '2' in 32 steht fuer Schreiben"
+# NICHT verifiziert, ob Byte0=0x32 auch fuer unseren Index/unser Geraet
+# passt. Dieser Button schreibt bewusst NUR den aktuell bekannten Wert
+# zurueck (keine echte Aenderung) - dient nur zum Testen, ob die WPM
+# das Schreib-Telegramm ueberhaupt akzeptiert (sichtbar an einem neuen
+# Broadcast auf idx=0x4F1B kurz danach im Log).
+#
+# ERST wenn dieser Test sauber funktioniert (Bestaetigung im Log, keine
+# Fehler, kein unerwartetes Verhalten der Anlage), sollte daraus ein
+# echter Schreib-Service mit variablem Zielwert gebaut werden.
+# =========================================================================
+button:
+  - platform: template
+    name: "Betriebsart Test-Rueckschreiben"
+    entity_category: diagnostic
+    on_press:
+      - lambda: |-
+          int16_t v = id(last_betriebsart);
+          if (v < 1 || v > 6) {
+            ESP_LOGW("wpe_i", "Betriebsart-Test abgebrochen: kein gueltiger Wert bekannt (%d)", v);
+            return;
+          }
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> write_betriebsart = {0x32, 0x00, 0xFA, 0x4F, 0x1B, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, write_betriebsart);
+          ESP_LOGI("wpe_i", "Betriebsart-Test-Schreiben gesendet: Wert=%d", v);
+
+# =========================================================================
+# Betriebsart-Steuerung (Index 0x4F1B) - schreibend bestaetigt am 19.07.2026:
+#   Ziel=Komfort(3) und Ziel=Eco(4) beide erfolgreich getestet, jeweils
+#   binnen ~820ms mit korrektem Wert auf 0x480 bestaetigt, keine Fehler.
+# =========================================================================
+select:
+  - platform: template
+    name: "Betriebsart setzen"
+    id: betriebsart_select
+    optimistic: false
+    options:
+      - "Bereitschaftsbetrieb"
+      - "Programmbetrieb"
+      - "Komfortbetrieb"
+      - "Eco-Betrieb"
+      - "Warmwasserbetrieb"
+    set_action:
+      - lambda: |-
+          uint8_t v = 0;
+          if (x == "Bereitschaftsbetrieb") v = 1;
+          else if (x == "Programmbetrieb") v = 2;
+          else if (x == "Komfortbetrieb") v = 3;
+          else if (x == "Eco-Betrieb") v = 4;
+          else if (x == "Warmwasserbetrieb") v = 5;
+          if (v == 0) {
+            ESP_LOGW("wpe_i", "Betriebsart setzen: unbekannte Option '%s'", x.c_str());
+            return;
+          }
+          std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x1B, 0x00, v};
+          id(my_canbus).send_data(0x680, false, w);
+          ESP_LOGI("wpe_i", "Betriebsart gesetzt auf: %s (%d)", x.c_str(), v);
+
+# =========================================================================
+# Steigung Heizkurve (Index 0x4F2B) - NUR LESEND bestaetigt (19.07.2026).
+# Schreiben nutzt das gleiche Format wie bei Betriebsart erfolgreich
+# getestet (0x32 00 FA ...), ist fuer DIESEN Index aber noch NICHT
+# verifiziert! Erste Aenderung bewusst klein vornehmen und am Display
+# UND im Log kontrollieren, bevor man dem Wert vertraut.
+#
+# Grenzen bewusst konservativ gewaehlt (0,1-2,5): laut Betriebsanleitung
+# koennen falsche Heizkurven-Werte zu Schaeden an Waermepumpe oder
+# Estrich fuehren. Typische Richtwerte: Fussbodenheizung ~0,4,
+# Radiatorenheizung ~0,8.
+# =========================================================================
+number:
+  - platform: template
+    name: "Steigung Heizkurve setzen"
+    id: steigung_heizkurve_set
+    optimistic: false
+    min_value: 0.1
+    max_value: 2.5
+    step: 0.05
+    unit_of_measurement: ""
+    set_action:
+      - lambda: |-
+          int16_t v = (int16_t) round(x * 100.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x2B, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          ESP_LOGI("wpe_i", "Steigung Heizkurve gesetzt auf: %.2f (roh=%d)", x, v);
+
+# =========================================================================
+# Komforttemperatur / Eco-Temperatur Heizkreis (Index 0x4EB8 / 0x4EB9):
+# Schreib-Versuch am 21.07.2026 zurueckgezogen - Anlage antwortete mit
+# val=0 (vermutlich "ungueltig/abgelehnt") statt einer echten Bestaetigung.
+# Die tatsaechliche Einstellung am Geraet blieb unveraendert (Sicherheits-
+# check bestaetigt: Display zeigte weiterhin korrekten Wert). Nur lesende
+# Sensoren oben im sensor:-Block bleiben aktiv. Schreib-Format fuer diese
+# beiden Indizes muss noch weiter erforscht werden, bevor ein erneuter
+# Versuch sinnvoll ist.
+# =========================================================================
+
