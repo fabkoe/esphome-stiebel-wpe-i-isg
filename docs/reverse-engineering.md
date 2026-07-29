@@ -136,7 +136,7 @@ HAUPTMENÜ
 | Wärmemenge / Leistungsaufnahme (WP) | VD/NHZ Heizen+WW Summen | ~~`0x4F9A`/`0x4EFB`/`0x0805` auf 0x514~~ **verworfen** | ✅ **bestätigt** über Block `0x091a–0x0931` auf CAN-ID 0x500 – siehe Abschnitt „Energiewerte / Zähler" |
 | Laufzeit/Starts | Passivkühlung 4000h | `0x025A`/`0x0259` | Wert-Bestätigung ausstehend |
 | Mischermodul-Wert | – | `0x4EB4` auf 0x601, ~19,1-19,2°C | vermutlich Vorlauf HK2 |
-| Status-Flags | – | `0x0074` auf 0x480 (val=1), `0x4EB3` auf 0x401/0x100 (val=1) | Bedeutung unklar (Betriebsstatus?) |
+| Status-Flags | – | `0x0074` = **EVU_SPERRE_AKTIV** (geklärt); `0x4EB3` auf 0x401/0x100 (val=1) | 0x0074 geklärt, 0x4EB3 offen |
 
 ## Bewährtes Vorgehen für neue Werte
 
@@ -167,7 +167,7 @@ Kodierung ist **1-indiziert** (nicht 0-indiziert wie ursprünglich vermutet):
 
 Ursprüngliche Kandidaten `0x0176` (BETRIEBS_STATUS) und `0x0062` (WAERMEPUMPEN_STATUS) waren beide falsch – tauchten im Log nicht auf.
 
-**Nebenbefund:** `0x0074` auf CAN-ID 0x480 (val=1) ändert sich NICHT mit der Betriebsart (war in Komfort und Eco identisch) – kein Betriebsart-Indikator, Bedeutung weiterhin offen.
+**Nebenbefund (geklärt 29.07.2026):** `0x0074` auf CAN-ID 0x480 ändert sich NICHT mit der Betriebsart – es ist **EVU_SPERRE_AKTIV** (Standard-Elster-Index, vom Sniffer als `on` gelesen; val=1 = Sperre aktiv). Kein Betriebsart-Indikator. Ggf. per Display gegenprüfbar.
 
 ### Schreiben (Betriebsart setzen)
 
@@ -450,7 +450,8 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
   - [ ] Optional: Tageszähler-Sensoren (`…_TAG_*` auf 0x514) ergänzen, falls Tageswerte gewünscht
 - [ ] Laufzeit/Starts bestätigen – Kandidaten `0x025A`/`0x0259`
 - [ ] Mischermodul-Wert (`0x4EB4` auf 0x601, ~19,1–19,2°C) einer konkreten Bedeutung zuordnen (vermutlich Vorlauf HK2)
-- [ ] Status-Flags klären: `0x0074` auf 0x480, `0x4EB3` auf 0x401/0x100 (beide val=1 gesehen – Betriebsstatus?)
+- [x] `0x0074` geklärt = **EVU_SPERRE_AKTIV** (Standard-Elster, val=1=aktiv; ändert sich nicht mit Betriebsart – konsistent)
+  - [ ] `0x4EB3` auf 0x401/0x100 (val=1) noch offen
 
 ### Sonstiges / Housekeeping
 - [ ] Meldungsliste (aktuell 14 Einträge) inhaltlich prüfen – harmlose Altmeldungen oder aktive Störungen?
