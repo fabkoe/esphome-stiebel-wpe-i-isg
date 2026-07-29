@@ -409,10 +409,11 @@ Rollende Fenster → im Manifest `state_class measurement` (nicht
 `total_increasing`, da der Wert sinken kann). COP wird bewusst **nicht**
 gelesen, sondern HA-seitig aus Wärme/Strom berechnet.
 
-**Request-Header:** Manager-Indizes (0x480) über 0x680 mit
-`91 00 FA 50 <idx_lo> 00 00` (`91 00` = `generate_read_id(0x480)`).
-Aktive Beantwortung durch 0x480 auf unseren 0x680-Poll noch **am Gerät zu
-verifizieren** (die Werte tauchten bislang als Broadcast beim Display-Aufruf auf).
+**Request-Header ✅ gerätebestätigt (29.07.2026):** Manager-Indizes (0x480)
+über 0x680 mit `91 00 FA 50 <idx_lo> 00 00` (`91 00` = `generate_read_id(0x480)`).
+Der Manager antwortet auf unseren aktiven 0x680-Poll auf `id=0x480`. Live nach
+Flash gelesen: Wärme Heizen 6179 kWh, WW 4283 kWh, Strom Heizen 817 kWh,
+WW 991 kWh – deckt sich digit-genau mit dem Display (HA-COP daraus 7,56 / 4,32).
 
 **Offen (nicht im 1–12-M-Scope):** COP Heizen 13–24 M (`val=732`, ~`0x5038`,
 nicht erfasst) und einige Nachbar-Indizes (`0x500D/E`=7.953, `0x5019/A`=1.446,
