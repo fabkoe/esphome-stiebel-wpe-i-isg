@@ -25,6 +25,7 @@ api:
 
 ota:
   platform: esphome
+  password: !secret ota_password
 
 # =========================================================================
 # Stiebel Eltron WPE-I 06 HKW 230 Premium - Elster/Kromschroeder-Protokoll
