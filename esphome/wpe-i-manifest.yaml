@@ -869,6 +869,11 @@ button:
           uint8_t val_lo = v & 0xFF;
           std::vector<uint8_t> write_betriebsart = {0x32, 0x00, 0xFA, 0x4F, 0x1B, val_hi, val_lo};
           id(my_canbus).send_data(0x680, false, write_betriebsart);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   write_betriebsart[0], write_betriebsart[1], write_betriebsart[2], write_betriebsart[3],
+                   write_betriebsart[4], write_betriebsart[5], write_betriebsart[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Betriebsart-Test-Schreiben gesendet: Wert=%d", v);
 
 # =========================================================================
@@ -901,14 +906,23 @@ select:
           }
           std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x1B, 0x00, v};
           id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Betriebsart gesetzt auf: %s (%d)", x.c_str(), v);
 
 # =========================================================================
-# Steigung Heizkurve (Index 0x4F2B) - NUR LESEND bestaetigt (19.07.2026).
-# Schreiben nutzt das gleiche Format wie bei Betriebsart erfolgreich
-# getestet (0x32 00 FA ...), ist fuer DIESEN Index aber noch NICHT
-# verifiziert! Erste Aenderung bewusst klein vornehmen und am Display
-# UND im Log kontrollieren, bevor man dem Wert vertraut.
+# Steigung Heizkurve (Index 0x4F2B) - NUR LESEND bestaetigt.
+# ACHTUNG: Schreiben mit dem hier verwendeten Betriebsart-Header
+# (0x32 00 FA ...) ist NACHWEISLICH WIRKUNGSLOS - Test 29.07.2026
+# (wpei-iws-1.log): zwei Schreibversuche, KEINE Antwort der Anlage,
+# Index 0x4F2B taucht danach nicht auf. Grund: 0x32-Header adressiert
+# das Betriebsart-Modul (0x480), die Heizkurve liegt aber auf dem
+# Mischermodul (0x601). Das Set-Format ist modulspezifisch und muss
+# erst per Display-Sniff fuer 0x601 ermittelt werden (siehe docs).
+# Der untenstehende Sendecode bleibt als Geruest, bis der korrekte
+# Header bekannt ist - liefert derzeit KEINE Wirkung am Geraet.
 #
 # Grenzen bewusst konservativ gewaehlt (0,1-2,5): laut Betriebsanleitung
 # koennen falsche Heizkurven-Werte zu Schaeden an Waermepumpe oder
@@ -931,6 +945,10 @@ number:
           uint8_t val_lo = v & 0xFF;
           std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x2B, val_hi, val_lo};
           id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Steigung Heizkurve gesetzt auf: %.2f (roh=%d)", x, v);
 
 # =========================================================================

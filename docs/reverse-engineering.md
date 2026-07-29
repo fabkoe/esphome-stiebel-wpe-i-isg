@@ -143,6 +143,7 @@ HAUPTMENÜ
 3. **Fotos vom Display machen** – iPhone-Dateinamen enthalten UTC-Zeitstempel (`YYYYMMDD_HHMMSSmmm_iOS.heic`), lokal = UTC+2 (Sommerzeit)
 4. Frames im Log-Zeitfenster der Fotos mit den angezeigten Werten abgleichen (Format meist `Wert × 10` als int16 big-endian)
 5. Bei Bedarf: aktives Polling für den neuen Index testen (immer zuerst über CAN-ID `0x680`, nie über belegte IDs wie `0x100`)
+6. **Schreib-Telegramme werden jetzt mitgeloggt** (seit 29.07.2026): die drei Schreib-Aktionen (Betriebsart-Testbutton, Betriebsart-Select, Heizkurve-Number) geben ihr gesendetes Frame als `TX id=0x680 raw=..` aus. So lässt sich das selbst gesendete Telegramm direkt mit dem vom Display gesnifften vergleichen. Die ~40 Poll-Sends loggen bewusst KEINE Rohbytes (Log-Spam; ihre Antworten werden ohnehin geloggt).
 
 ## Nächste Ziele: Heizkurve, Kühlkurve, Betriebsart (inkl. Schreibzugriff)
 
@@ -504,13 +505,13 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
   - [ ] Programmbetrieb (erwartet: 2) verifizieren
   - [ ] Not-Betrieb (erwartet: 6) – bewusst nicht aktiv testen (Notfallmodus)
 - [x] **Betriebsart-Schreiben getestet und bestätigt** – select-Entity in HA verfügbar, Komfort/Eco per CAN-Schreibbefehl erfolgreich verifiziert (Display wechselt sichtbar)
-- [x] **Steigung Heizkurve auslesen** – Index `0x4F2B` bestätigt (0,40→0,45→0,40 verifiziert)
-  - [ ] Steigung Heizkurve schreiben verifizieren (number-Entity vorhanden, Testschreiben mit Log+Display-Kontrolle noch ausstehend)
+- [x] **Steigung Heizkurve auslesen** – Index `0x4F2B` bestätigt (0,40→0,45→0,40 verifiziert). Lese-Header `C1 01` (= `generate_read_id(0x601)`) am 29.07. **gerätebestätigt** (war zuvor nur abgeleitet).
+  - [ ] **Steigung Heizkurve schreiben – Fehlschlag analysiert (29.07., `wpei-iws-1.log`).** Zwei Schreibversuche (0,40 / 1,00) mit `32 00 FA 4F 2B hi lo` über 0x680 → **keine Antwort der Anlage**, Index `0x4F2B` taucht danach nirgends auf, Mischermodul 0x601 sendet nur weiter seinen `0x4EB4`-Broadcast. **Fehlerbild = falsches Zielmodul.** Der `32 00`-Header ist NICHT der Lese-Header (`C1 01`) und stammt vom Betriebsart-Schreiben (Modul 0x480) – er adressiert die falsche Empfängeradresse. **Nächster Schritt:** display-seitige Heizkurven-Änderung am WPM sniffen (Sniffer loggt Rohbytes), um die korrekte Schreib-Adressierung fürs 0x601 abzulesen. Danach Schreib-Telegramm anpassen und erneut mit Log+Display testen.
   - [ ] Schreibformat für Komforttemperatur/Eco-Temperatur (0x4EB8/0x4EB9) herausfinden – erster Versuch mit `32 00 FA ...` schlug fehl (Anlage antwortete val=0), Gerät blieb unverändert. Evtl. anderer Byte0-Header oder andere Zieladressierung nötig, ähnlich wie bei WW-Soll (`41 01` statt `A1 14`) herausgefunden
   - [ ] Niveau/Komfort-Temperatur der Heizkurve auslesen (eigener Index, noch offen)
   - [ ] Bonus-Kandidaten zuordnen: `0x4EA7`, `0x4EA4` auf 0x601 (Komforttemperatur `0x4EB8` und Eco-Temperatur `0x4EB9` bereits bestätigt)
 - [ ] **Kühlkurve auslesen** – analog unter Einstellungen→Kühlen
-- [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – Schreib-Format `32 00 FA ...` bereits für Betriebsart bestätigt, vermutlich generisch übertragbar
+- [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – ACHTUNG: `32 00 FA ...` ist NICHT generisch. Es funktioniert nur fürs Betriebsart-Modul (0x480); beim Mischermodul (0x601, Heizkurve) blieb es wirkungslos (siehe Heizkurve-Schreiben oben). Schreib-Adressierung ist modulspezifisch und ≠ Lese-Header → pro Zielmodul per Display-Sniff bestätigen
 - [ ] **Schreib-Service in ESPHome ergänzen** (number/select-Entities) – erst nachdem Set-Format bestätigt ist, mit Min/Max-Grenzen im Code
 
 ### Prozessdaten / Energie (aus vorheriger Session offen)
