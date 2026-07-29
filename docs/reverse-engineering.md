@@ -350,10 +350,74 @@ WW 9 ≥ 8,28; El-Heiz 2 ≥ 1,84; El-WW 2 ≥ 1,95). COP Heizen 14/2 = 7,0 (Dis
 zugeordnet, wären aber schöne HA-Sensoren. Kandidaten: `et_double_val`/
 `et_triple_val`-Einträge in der ElsterTable.
 
-**Offen für Produktiv-Manifest:** Für die Nachkommastellen müssen `SUM_KWH`
-mitgepollt und mit `SUM_MWH` kombiniert werden (Basissatz pollt nur `SUM_MWH`).
-Request-Header für 0x500-Ziel über unseren 0x680-Kanal noch zu ermitteln
-(Sniffer fragt über 0x500 selbst an: `a1 00 fa 09 21 00 00`).
+**✅ Im Produktiv-Manifest umgesetzt und gerätebestätigt (29.07.2026):**
+Sechs kombinierte Energiesensoren (`SUM_MWH`×1000 + `SUM_KWH`) als HA-Entities
+(`device_class energy`, `total_increasing`). Live gelesen nach OTA-Flash:
+
+| Zähler | MWh-Reg | kWh-Reg | kombiniert |
+|---|---|---|---|
+| Wärmemenge Heizen VD | 14 | 616 | 14 616 kWh |
+| Wärmemenge WW VD | 9 | 386 | 9 386 kWh |
+| Wärmemenge Heizen/WW NHZ (2WE) | 0 | 0 | 0 kWh (NHZ nie genutzt) |
+| Stromaufnahme Heizen VD | 2 | 240 | 2 240 kWh |
+| Stromaufnahme WW VD | 2 | 294 | 2 294 kWh |
+
+**Request-Header gelöst:** Heizmodul-Indizes (0x500) über unseren 0x680-Kanal
+mit `A1 00 FA <idx_hi> <idx_lo> 00 00` abfragen. `A1 00` = `generate_read_id(0x500)`
+(unteres Halbbyte `1` = Lese-Anfrage). Antwort kommt auf `id=0x500`. Verifiziert,
+weil der Sniffer identisch auf 0x680 sendet und die WPE-I antwortet.
+
+**Nebenbefund:** Die **Tageszähler** (`…_TAG_KWH`/`…_TAG_WH`, z. B. `0x092A/0x092B`,
+`0x091A/0x091B`) werden auf **CAN-ID 0x514** (IWS) beantwortet/gebroadcastet,
+nicht auf 0x500. WW heute 6,966 kWh / Strom heute 1,255 kWh (mit Display-TAG
+konsistent). Für künftige Tageswert-Sensoren dort pollen.
+
+**Build-Hinweis:** Das Manifest muss mit `framework: type: esp-idf` gebaut
+werden – `arduino` lieferte unter ESPHome 2026.7.3 / IDF 5.5.5 einen
+Linkfehler in `libwpa_supplicant.a` (vorkompilierte WLAN-Blobs inkompatibel).
+
+## Gesamtsystem-Energiebilanz (Jahresfenster) – Block `0x50xx` auf 0x480
+
+Aufgespürt durch Rohframe-Mitschnitt beim Navigieren von
+`Info → Energiebilanz → Gesamtsystem` (Produktiv-Firmware loggt alle Frames).
+Der komplette Screen liegt im **`0x50xx`-Block auf CAN-ID 0x480 (Manager)**,
+Struktur wie der Energieblock: Energie als MWh+kWh-Paar, Effizienz als
+einzelner ×100-Wert. **11 Werte digit-genau gegen die Display-Fotos bestätigt.**
+
+**Zeitfenster 1–12 M** (rollend, im Manifest als 4 Sensoren umgesetzt):
+
+| Wert | MWh-idx | kWh-idx | Display |
+|---|---|---|---|
+| Wärmemenge Heizen | `0x5007` | `0x5008` | 6,17 MWh |
+| Wärmemenge WW | `0x500F` | `0x5010` | 4,283 MWh |
+| Stromverbrauch Heizen | `0x5013` | `0x5014` | 0,817 MWh |
+| Stromverbrauch WW | `0x501B` | `0x501C` | 0,991 MWh |
+| Effizienz Heizen (÷100) | `0x501E` | – | 7,56 |
+| Effizienz WW (÷100) | `0x5022` | – | 4,32 |
+
+**Zeitfenster 13–24 M** (bestätigt, noch nicht als Sensor umgesetzt):
+
+| Wert | MWh-idx | kWh-idx | Display |
+|---|---|---|---|
+| Wärmemenge Heizen | `0x502C` | `0x502D` | 7,502 MWh |
+| Wärmemenge WW | `0x5030` | `0x5031` | 4,00 MWh |
+| Stromverbrauch Heizen | `0x5032` | `0x5033` | 1,025 MWh |
+| Stromverbrauch WW | `0x5036` | `0x5037` | 0,956 MWh |
+| Effizienz WW (÷100) | `0x503A` | – | 4,18 |
+
+Rollende Fenster → im Manifest `state_class measurement` (nicht
+`total_increasing`, da der Wert sinken kann). COP wird bewusst **nicht**
+gelesen, sondern HA-seitig aus Wärme/Strom berechnet.
+
+**Request-Header:** Manager-Indizes (0x480) über 0x680 mit
+`91 00 FA 50 <idx_lo> 00 00` (`91 00` = `generate_read_id(0x480)`).
+Aktive Beantwortung durch 0x480 auf unseren 0x680-Poll noch **am Gerät zu
+verifizieren** (die Werte tauchten bislang als Broadcast beim Display-Aufruf auf).
+
+**Offen (nicht im 1–12-M-Scope):** COP Heizen 13–24 M (`val=732`, ~`0x5038`,
+nicht erfasst) und einige Nachbar-Indizes (`0x500D/E`=7.953, `0x5019/A`=1.446,
+`0x5021`=550 – evtl. „Gesamt"-/Lifetime-Zeilen oder kombinierter COP). Für die
+Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
 
 ## TODOs
 
@@ -379,9 +443,10 @@ Request-Header für 0x500-Ziel über unseren 0x680-Kanal noch zu ermitteln
 - [ ] Prozessdaten S.2 bestätigen: Ölsumpf, Druck ND/HD, Volumenstrom
 - [ ] Prozessdaten S.3 bestätigen: Strom/Spannung Inverter, Ist-/Solldrehzahl Verdichter (vermutlich WPE-I-spezifisch, ggf. nicht in Standard-Elster-Tabelle)
 - [x] **Wärmemenge + Leistungsaufnahme (WP) bestätigt** – Block `0x091a–0x0931` auf 0x500 (Sniffer + Display-Gegencheck), siehe Abschnitt „Energiewerte / Zähler". Alte Kandidaten `0x4F9A`/`0x0805` auf 0x514 verworfen.
-  - [ ] `SUM_KWH`-Register (`0x0920`/`0x091c`/`0x0924`/`0x0928`/`0x092c`/`0x0930`) mitpollen und mit `SUM_MWH` kombinieren (Nachkommastellen)
-  - [ ] Request-Header für 0x500-Ziel über 0x680 ermitteln, dann Energiezähler ins Produktiv-Manifest übernehmen (HA: device_class energy, state_class total_increasing)
+  - [x] `SUM_KWH`-Register mitpollen und mit `SUM_MWH` kombinieren – im Manifest umgesetzt (6 Sensoren), gerätebestätigt (z. B. Heizen 14 616 kWh, WW 9 386 kWh)
+  - [x] Request-Header für 0x500-Ziel über 0x680 ermittelt (`A1 00 FA …`) und Energiezähler ins Produktiv-Manifest übernommen (HA: device_class energy, total_increasing)
   - [ ] Gesamtsystem-Screen (`Info → Energiebilanz → Gesamtsystem`) eigene Indizes zuordnen (Gesamtwärmemenge/-strom/-effizienz je 12-Monats-Fenster)
+  - [ ] Optional: Tageszähler-Sensoren (`…_TAG_*` auf 0x514) ergänzen, falls Tageswerte gewünscht
 - [ ] Laufzeit/Starts bestätigen – Kandidaten `0x025A`/`0x0259`
 - [ ] Mischermodul-Wert (`0x4EB4` auf 0x601, ~19,1–19,2°C) einer konkreten Bedeutung zuordnen (vermutlich Vorlauf HK2)
 - [ ] Status-Flags klären: `0x0074` auf 0x480, `0x4EB3` auf 0x401/0x100 (beide val=1 gesehen – Betriebsstatus?)
