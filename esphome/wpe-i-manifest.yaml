@@ -68,6 +68,32 @@ globals:
     type: int16_t
     restore_value: false
     initial_value: '0'
+  # Energiezaehler: MWh-Teil zwischenspeichern, um ihn beim Eintreffen des
+  # kWh-Teils zum Gesamtwert (kWh = MWh*1000 + kWh) zu kombinieren.
+  - id: g_wm_heiz_vd_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_wm_ww_vd_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_wm_heiz_nhz_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_wm_ww_nhz_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_el_heiz_vd_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_el_ww_vd_mwh
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
 
 sensor:
   - platform: template
@@ -173,6 +199,59 @@ sensor:
     device_class: temperature
     state_class: measurement
     accuracy_decimals: 1
+
+  # --- Energiezaehler (Summe seit Inbetriebnahme) ---
+  # Kombiniert aus MWh- und kWh-Register (kWh = MWh*1000 + kWh).
+  # device_class energy + total_increasing => direkt im HA-Energy-Dashboard.
+  # Bestaetigt 29.07.2026 (Sniffer + Display-Gegencheck), Antwort auf 0x500.
+  # 2WE = zweiter Waermeerzeuger = elektrische Nacherwaermung (NHZ).
+  - platform: template
+    name: "Waermemenge Heizen VD"
+    id: wm_heiz_vd
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: template
+    name: "Waermemenge Warmwasser VD"
+    id: wm_ww_vd
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: template
+    name: "Waermemenge Heizen NHZ"
+    id: wm_heiz_nhz
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: template
+    name: "Waermemenge Warmwasser NHZ"
+    id: wm_ww_nhz
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: template
+    name: "Stromaufnahme Heizen VD"
+    id: el_heiz_vd
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: template
+    name: "Stromaufnahme Warmwasser VD"
+    id: el_ww_vd
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: total_increasing
+    accuracy_decimals: 0
 
 text_sensor:
   - platform: template
@@ -302,6 +381,41 @@ canbus:
                 id(ecotemperatur_hk).publish_state(val / 10.0f);
               }
 
+              // --- ENERGIEZAEHLER (Summe) auf CAN-ID 0x500 (Heizmodul) ---
+              // Zwei Register je Zaehler: MWh (ganze MWh) + kWh (0-999 Rest).
+              // MWh-Teil merken, beim kWh-Teil kombiniert publizieren:
+              // kWh_gesamt = MWh*1000 + kWh.
+              // Waermemenge Heizen VD: MWh 0x0931 / kWh 0x0930
+              if (idx == 0x0931 && can_id == 0x500) { id(g_wm_heiz_vd_mwh) = val; }
+              if (idx == 0x0930 && can_id == 0x500) {
+                id(wm_heiz_vd).publish_state((float)id(g_wm_heiz_vd_mwh) * 1000.0f + val);
+              }
+              // Waermemenge Warmwasser VD: MWh 0x092D / kWh 0x092C
+              if (idx == 0x092D && can_id == 0x500) { id(g_wm_ww_vd_mwh) = val; }
+              if (idx == 0x092C && can_id == 0x500) {
+                id(wm_ww_vd).publish_state((float)id(g_wm_ww_vd_mwh) * 1000.0f + val);
+              }
+              // Waermemenge Heizen NHZ (2WE): MWh 0x0929 / kWh 0x0928
+              if (idx == 0x0929 && can_id == 0x500) { id(g_wm_heiz_nhz_mwh) = val; }
+              if (idx == 0x0928 && can_id == 0x500) {
+                id(wm_heiz_nhz).publish_state((float)id(g_wm_heiz_nhz_mwh) * 1000.0f + val);
+              }
+              // Waermemenge Warmwasser NHZ (2WE): MWh 0x0925 / kWh 0x0924
+              if (idx == 0x0925 && can_id == 0x500) { id(g_wm_ww_nhz_mwh) = val; }
+              if (idx == 0x0924 && can_id == 0x500) {
+                id(wm_ww_nhz).publish_state((float)id(g_wm_ww_nhz_mwh) * 1000.0f + val);
+              }
+              // Stromaufnahme Heizen VD: MWh 0x0921 / kWh 0x0920
+              if (idx == 0x0921 && can_id == 0x500) { id(g_el_heiz_vd_mwh) = val; }
+              if (idx == 0x0920 && can_id == 0x500) {
+                id(el_heiz_vd).publish_state((float)id(g_el_heiz_vd_mwh) * 1000.0f + val);
+              }
+              // Stromaufnahme Warmwasser VD: MWh 0x091D / kWh 0x091C
+              if (idx == 0x091D && can_id == 0x500) { id(g_el_ww_vd_mwh) = val; }
+              if (idx == 0x091C && can_id == 0x500) {
+                id(el_ww_vd).publish_state((float)id(g_el_ww_vd_mwh) * 1000.0f + val);
+              }
+
               // Rohdaten weiterhin ins Log, falls wir spaeter noch was
               // Unbekanntes nachverfolgen wollen
               ESP_LOGD("wpe_i", "id=0x%03X idx=0x%04X val=%d", can_id, idx, val);
@@ -340,6 +454,52 @@ interval:
           // FA-Marker + 2-Byte-Index statt kurzem 1-Byte-Index
           std::vector<uint8_t> req_betriebsart = {0x41, 0x01, 0xFA, 0x4F, 0x1B, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, req_betriebsart);
+      # --- Energiezaehler (Heizmodul 0x500) ueber 0x680 abfragen ---
+      # Header A1 00 = generate_read_id(0x500), gerätegeprueft (Sniffer
+      # sendet identisch auf 0x680, WPE-I antwortet auf 0x500). Pro Zaehler
+      # zuerst MWh, dann kWh (Reihenfolge sichert korrekte Kombination).
+      - delay: 200ms
+      - lambda: |-
+          // Waermemenge Heizen VD (MWh 0x0931 + kWh 0x0930)
+          std::vector<uint8_t> r_mwh = {0xA1, 0x00, 0xFA, 0x09, 0x31, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0xA1, 0x00, 0xFA, 0x09, 0x30, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Waermemenge Warmwasser VD (MWh 0x092D + kWh 0x092C)
+          std::vector<uint8_t> r_mwh = {0xA1, 0x00, 0xFA, 0x09, 0x2D, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0xA1, 0x00, 0xFA, 0x09, 0x2C, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Waermemenge Heizen NHZ (MWh 0x0929 + kWh 0x0928)
+          std::vector<uint8_t> r_mwh = {0xA1, 0x00, 0xFA, 0x09, 0x29, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0xA1, 0x00, 0xFA, 0x09, 0x28, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Waermemenge Warmwasser NHZ (MWh 0x0925 + kWh 0x0924)
+          std::vector<uint8_t> r_mwh = {0xA1, 0x00, 0xFA, 0x09, 0x25, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0xA1, 0x00, 0xFA, 0x09, 0x24, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Stromaufnahme Heizen VD (MWh 0x0921 + kWh 0x0920)
+          std::vector<uint8_t> r_mwh = {0xA1, 0x00, 0xFA, 0x09, 0x21, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0xA1, 0x00, 0xFA, 0x09, 0x20, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Stromaufnahme Warmwasser VD (MWh 0x091D + kWh 0x091C)
+          std::vector<uint8_t> r_mwh = {0xA1, 0x00, 0xFA, 0x09, 0x1D, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0xA1, 0x00, 0xFA, 0x09, 0x1C, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
 
 # =========================================================================
 # EXPERIMENTELL: Schreib-Test fuer Betriebsart (Index 0x4F1B)
