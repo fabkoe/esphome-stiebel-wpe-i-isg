@@ -130,11 +130,9 @@ HAUPTMENÜ
 
 | Screen | Angezeigte Werte | CAN-Kandidat | Status |
 |---|---|---|---|
-| Prozessdaten S.1 | Verdampfer 21,6°C / Verdichtereintritt 28,0°C / Heißgas 27,6°C | – | offen |
-| Prozessdaten S.2 | Ölsumpf 37,8°C / ND 9,52bar / HD 9,41bar / Volumenstrom | – | offen |
-| Prozessdaten S.3 | Strom/Spannung Inverter, Ist/Solldrehzahl Verdichter | – | vermutlich WPE-I-spezifisch, nicht in Standard-Elster-Tabelle |
-| Wärmemenge / Leistungsaufnahme (WP) | VD/NHZ Heizen+WW Summen | ~~`0x4F9A`/`0x4EFB`/`0x0805` auf 0x514~~ **verworfen** | ✅ **bestätigt** über Block `0x091a–0x0931` auf CAN-ID 0x500 – siehe Abschnitt „Energiewerte / Zähler" |
-| Laufzeit/Starts | Passivkühlung 4000h | `0x025A`/`0x0259` | Wert-Bestätigung ausstehend |
+| Prozessdaten S.1–S.4 | Kältekreis, Drücke, Inverter, Wärmequelle | 0x514-Block | ✅ **komplett bestätigt** – siehe Abschnitt „Prozessdaten" |
+| Wärmemenge / Leistungsaufnahme (WP) | VD/NHZ Heizen+WW Summen | `0x091a–0x0931` | ✅ bestätigt – **Achtung: Display-Werte kommen von 0x514 (IWS), nicht 0x500!** Siehe „Energiewerte / Zähler" |
+| Laufzeit/Starts | VD/NHZ/Passivkühlung/Starts | 0x514-Block | ✅ **komplett bestätigt** – siehe Abschnitt „Laufzeiten & Starts" |
 | Mischermodul-Wert | – | `0x4EB4` auf 0x601, ~19,1-19,2°C | vermutlich Vorlauf HK2 |
 | Status-Flags | – | `0x0074` = **EVU_SPERRE_AKTIV** (geklärt); `0x4EB3` auf 0x401/0x100 (val=1) | 0x0074 geklärt, 0x4EB3 offen |
 
@@ -315,6 +313,9 @@ siehe unten). Die alten Kandidaten (`0x4F9A`/`0x0805` auf 0x514) sind damit
 **verworfen**.
 
 **Modul: Heizmodul, Antwort auf CAN-ID `0x500`** (paarweise mit 0x700).
+**⚠️ Nachträgliche Korrektur:** dieselben Indizes existieren auch auf der
+**IWS (0x514)** mit **abweichenden Werten – die IWS entspricht dem Display**
+(inkl. NHZ-Zählern). Siehe Korrektur-Abschnitt weiter unten.
 Erweiterte Indizes (`0xFA`-Frames). Jeder Zähler ist auf **mehrere Register
 gesplittet** (Stiebel-Standard):
 
@@ -375,6 +376,79 @@ konsistent). Für künftige Tageswert-Sensoren dort pollen.
 **Build-Hinweis:** Das Manifest muss mit `framework: type: esp-idf` gebaut
 werden – `arduino` lieferte unter ESPHome 2026.7.3 / IDF 5.5.5 einen
 Linkfehler in `libwpa_supplicant.a` (vorkompilierte WLAN-Blobs inkompatibel).
+
+### ⚠️ Wichtige Korrektur (29.07.2026 abends): Index-Raum ist modulspezifisch!
+
+Beim Prozessdaten-Sniff kam heraus: **dieselben `0x09xx`-Indizes liefern auf
+0x500 (Heizmodul) andere Werte als auf 0x514 (IWS)** – und die
+**Display-Anzeige entspricht den IWS-Werten**:
+
+| Zähler (Summe) | 0x500 (Heizmodul) | 0x514 (IWS) = Display |
+|---|---|---|
+| Wärme Heizen VD | 14.616 | **15.216** MWh |
+| Wärme WW VD | 9.386 | 9.421 (Display 9.427, lief gerade) |
+| Wärme NHZ Heizen (2WE) | 0 | **3.214** MWh |
+| Wärme NHZ WW (2WE) | 0 | **0.367** MWh |
+| El. Heizen VD | 2.240 | **2.033** MWh |
+| El. WW VD | 2.294 | 2.202 MWh |
+
+Die NHZ-Zähler existieren also nur auf der IWS (das Heizmodul meldet 2WE=0,
+obwohl die NHZ real 378 h gelaufen ist). Warum die Heizmodul-Zähler abweichen
+(Heizen −600 kWh, El +207 kWh), ist offen – **Referenz ist die IWS.**
+
+**Konsequenz fürs Manifest:** Energie-Summenpolls auf die IWS umstellen –
+Request-Header **`A1 14`** (bereits durch den Rücklauf-Poll verifiziert,
+IWS antwortet mit Cmd `D2` auf CAN-ID 0x514), Decode auf `can_id == 0x514`.
+
+## Prozessdaten ✅ komplett bestätigt (29.07.2026)
+
+Alle Werte der 4 Prozessdaten-Screens (`Info → Wärmepumpe → Prozessdaten`)
+liegen auf **CAN-ID 0x514 (IWS)**, Broadcast (Cmd `0x20`) beim Screen-Aufruf.
+Foto+Log-Abgleich während laufender WW-Bereitung (Werte bewegten sich sichtbar
+konsistent mit dem Display):
+
+| Display | Index | Skalierung | Beleg (Display ↔ Log) |
+|---|---|---|---|
+| Rücklauftemperatur | `0x0016` | /10 °C | 37,9 ↔ 348–379 (bekannter Index) |
+| Vorlauftemperatur | `0x01D6` | /10 °C | 44,0 ↔ 440–449 (= Elster `WPVORLAUFIST`) |
+| Verdampfertemperatur | `0x07A9` | /10 °C | 16,9 ↔ 166–170 |
+| Verdichtereintrittstemp. | `0x06D9` | /10 °C | 26,7 ↔ 259–303 |
+| Heißgastemperatur | `0x0265` | /10 °C | 49,5 ↔ 488–513 |
+| Verflüssigertemperatur | `0x0A39` | /10 °C | 38,9 ↔ 355–389 |
+| Ölsumpftemperatur | `0x0A37` | /10 °C | 378/389 (alte Notiz „37,8 °C" passt) |
+| Druck Niederdruck | `0x07A7` | /100 bar | 6,73 ↔ 654–695 |
+| Druck Hochdruck | `0x07A6` | /100 bar | 17,42 ↔ 1729–1746 |
+| WP Wasservolumenstrom | `0x02E2` | /10 l/min | 7,0 ↔ 70–80 |
+| Strom Inverter | `0x06B2` | /10 A | 3,8 ↔ 38–40 |
+| Spannung Inverter | `0x06B1` | /10 V | 224,0 ↔ 2240 |
+| Ist-/Solldrehzahl Verdichter | `0x06EB` / `0x06EC` | Hz direkt | 58/55 ↔ 55–60 (welcher Ist ist: offen) |
+| Rücklauftemp. Wärmequelle | `0x4FA6` | /10 °C | 13,3 ↔ 133/136 |
+| Vorlauftemp. Wärmequelle | `0x4FA7` | /10 °C | 16,9 ↔ 169/172 |
+| Wärmequellendruck | `0x4FA8` | /10 bar | 1,5 ↔ 15 |
+| Leistung Wärmequellenpumpe | `0x4FA9` | /10 % | 40,6 ↔ 405–425 |
+
+Nebenbefunde: `0xFDF4` (0x700) läuft deckungsgleich mit `0x0016` → sehr
+wahrscheinlich Rücklauf auf dem Heizmodul-Kanal. `0xFDF3` (WP-Vorlauf) stieg
+während der WW-Bereitung live 29,3→45,2 °C – dynamische Bestätigung.
+`0x063B` (0x500, 43–58) vermutlich ebenfalls eine Drehzahl.
+
+## Laufzeiten & Starts ✅ komplett bestätigt (29.07.2026)
+
+Ebenfalls 0x514-Broadcasts. **Die alten Kandidaten-Vermutungen waren alle
+falsch beschriftet** – `0x4F9A` ist nicht Wärmemenge, sondern Passivkühlung;
+`0x0805` nicht Leistungsaufnahme, sondern NHZ-Laufzeit:
+
+| Display | Index | Beleg |
+|---|---|---|
+| VD Heizen 5126 h | `0x4EFB` | 5125 ✓ |
+| VD Warmwasser 2434 h | `0x4EFD` | 2434 ✓ exakt |
+| NHZ 1 / NHZ 2 | `0x0259` / `0x025A` | 23/23 ✓ |
+| NHZ 1/2 378 h | `0x0805` | 378 ✓ exakt |
+| Passivkühlung 4223 h | `0x4F9A` | 4223 ✓ exakt |
+| Verdichter-Starts 8595 | `0x4EF0` (×1000) + `0x4EF1` | 8 + 595 ✓ (Split-Register) |
+
+(`0x4EFC`, `0x4F06`, `0x07FC–0x0809` außer `0x0805` melden `-32768` =
+nicht verfügbar.)
 
 ## Gesamtsystem-Energiebilanz (Jahresfenster) – Block `0x50xx` auf 0x480
 
@@ -440,15 +514,17 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
 - [ ] **Schreib-Service in ESPHome ergänzen** (number/select-Entities) – erst nachdem Set-Format bestätigt ist, mit Min/Max-Grenzen im Code
 
 ### Prozessdaten / Energie (aus vorheriger Session offen)
-- [ ] Prozessdaten S.1 bestätigen: Verdampfer, Verdichtereintritt, Heißgas
-- [ ] Prozessdaten S.2 bestätigen: Ölsumpf, Druck ND/HD, Volumenstrom
-- [ ] Prozessdaten S.3 bestätigen: Strom/Spannung Inverter, Ist-/Solldrehzahl Verdichter (vermutlich WPE-I-spezifisch, ggf. nicht in Standard-Elster-Tabelle)
-- [x] **Wärmemenge + Leistungsaufnahme (WP) bestätigt** – Block `0x091a–0x0931` auf 0x500 (Sniffer + Display-Gegencheck), siehe Abschnitt „Energiewerte / Zähler". Alte Kandidaten `0x4F9A`/`0x0805` auf 0x514 verworfen.
-  - [x] `SUM_KWH`-Register mitpollen und mit `SUM_MWH` kombinieren – im Manifest umgesetzt (6 Sensoren), gerätebestätigt (z. B. Heizen 14 616 kWh, WW 9 386 kWh)
-  - [x] Request-Header für 0x500-Ziel über 0x680 ermittelt (`A1 00 FA …`) und Energiezähler ins Produktiv-Manifest übernommen (HA: device_class energy, total_increasing)
-  - [ ] Gesamtsystem-Screen (`Info → Energiebilanz → Gesamtsystem`) eigene Indizes zuordnen (Gesamtwärmemenge/-strom/-effizienz je 12-Monats-Fenster)
+- [x] **Prozessdaten S.1–S.4 komplett bestätigt** (29.07.) – alle auf 0x514, siehe Abschnitt „Prozessdaten"
+  - [x] Prozessdaten-Sensoren ins Manifest übernommen (16 Sensoren, aktiver `A1 14`-Poll über 0x680, gerätebestätigt in HA)
+  - [ ] Ist- vs. Solldrehzahl auflösen (`0x06EB`/`0x06EC`) – bei **laufendem** Verdichter prüfen (im Test standen beide auf 0)
+- [x] **Wärmemenge + Leistungsaufnahme (WP) bestätigt** – Block `0x091a–0x0931`, siehe Abschnitt „Energiewerte / Zähler"
+  - [x] `SUM_KWH`-Register mitpollen und mit `SUM_MWH` kombinieren – im Manifest umgesetzt (6 Sensoren)
+  - [x] Request-Header für 0x500-Ziel über 0x680 ermittelt (`A1 00 FA …`)
+  - [x] **Manifest-Fix umgesetzt: Energie-Summenpolls von 0x500 auf 0x514 (IWS)** – Header `A1 14`, Decode `0x514`. In HA gerätebestätigt: Wärme Heizen 15.216, NHZ Heizen 3.214, NHZ WW 367, El Heizen 2.033 kWh = Display-Werte
+  - [x] Gesamtsystem-Screen zugeordnet und im Manifest (4 Sensoren, 1–12M, gerätebestätigt)
   - [ ] Optional: Tageszähler-Sensoren (`…_TAG_*` auf 0x514) ergänzen, falls Tageswerte gewünscht
-- [ ] Laufzeit/Starts bestätigen – Kandidaten `0x025A`/`0x0259`
+- [x] **Laufzeiten + Starts komplett bestätigt** (29.07.) – `0x4EFB`/`0x4EFD` (VD), `0x0259`/`0x025A` (NHZ1/2), `0x0805` (NHZ1/2 gemeinsam), `0x4F9A` (Passivkühlung), `0x4EF0`/`0x4EF1` (Starts, Split). Siehe Abschnitt „Laufzeiten & Starts"
+  - [ ] Optional: Laufzeit-/Start-Sensoren ins Manifest (diagnostic, langsames Intervall)
 - [ ] Mischermodul-Wert (`0x4EB4` auf 0x601, ~19,1–19,2°C) einer konkreten Bedeutung zuordnen (vermutlich Vorlauf HK2)
 - [x] `0x0074` geklärt = **EVU_SPERRE_AKTIV** (Standard-Elster, val=1=aktiv; ändert sich nicht mit Betriebsart – konsistent)
   - [ ] `0x4EB3` auf 0x401/0x100 (val=1) noch offen
