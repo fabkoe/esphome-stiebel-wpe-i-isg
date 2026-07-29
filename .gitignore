@@ -1,0 +1,18 @@
+# Zugangsdaten niemals committen
+esphome/secrets.yaml
+
+# ESPHome Build-Artefakte
+esphome/.esphome/
+.esphome/
+*.bin
+
+# Logs / Mitschnitte
+*.log
+canlog_*.txt
+canlog_*.csv
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
