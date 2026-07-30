@@ -276,17 +276,25 @@ entspricht exakt der Display-Reihenfolge (positionsgenaue Zuordnung).
 
 | Index (0x601) | Menüpunkt (Display) | Skalierung | Test-Log-Wert | Status |
 |---|---|---|---|---|
-| `0x4F08` | **Kühlkreis Ein/Aus** | Flag (1=EIN) | 1 = EIN | positionell zugeordnet |
+| `0x4F08` | **Kühlkreis Ein/Aus** | 1=EIN, 0=AUS | 1→0→1 | **bestätigt (Wert)** |
 | `0x4F04` | **Raumsolltemperatur Kühlen** | ÷10 → °C | 200 = 20,0 °C | **bestätigt (Wert)** |
-| `0x4F05` | **KühlART** | Enum | 1 | positionell zugeordnet |
+| `0x4F05` | **KühlART** | 1=Flächenkühlung, 0=Gebläsekühlung | 1→0→1 | **bestätigt (Wert)** |
 | `0x4FB9` | **Steigung Kühlkurve** | ÷100 | 75 = 0,75 | **bestätigt (Wert)** |
 | `0x4FBE` | **Starttemperatur Kühlen** | ÷10 → °C | 185 = 18,5 °C | **bestätigt (Wert)** |
 
 Roh-Frames (Burst @ 12:47:33): `22 00 FA 4F 08 00 01`, `22 00 FA 4F 04 00 C8`,
 `22 00 FA 4F 05 00 01`, `22 00 FA 4F B9 00 4B`, `22 00 FA 4F BE 00 B9`.
-Die drei Zahlenwerte matchen exakt die Display-Anzeige → bestätigt. Die beiden
-Enums (`0x4F08` Ein/Aus, `0x4F05` KühlART, beide =1) sind nur über die
-Positions-Reihenfolge zugeordnet, wert-eindeutig noch offen.
+Die drei Zahlenwerte matchen exakt die Display-Anzeige. Die beiden Enums per
+Toggle-Test bestätigt (30.07., `logs/kuehlart-enum.log`): `0x4F08` 1→0→1 beim
+Ein-/Ausschalten des Kühlkreises, `0x4F05` 1→0→1 beim Wechsel
+Flächenkühlung→Gebläsekühlung→zurück.
+
+**Übergeordneter Schalter „KÜHLEN" (Modul ≠ 0x601):** Index `0x4F07`,
+1=EIN / 0=AUS, per Toggle 1→0→1 bestätigt (30.07.). Quell-CAN-IDs `0x180`
+(Broadcast) bzw. `0x100` (beim Schalten) – liegt also NICHT auf `0x601`,
+sondern auf einem eigenen Modul (wie Hysterese/Leistung). Beim Ausschalten
+kaskadieren Folge-Frames (u. a. `0x4ECD` 4→0). Exakter Display-Name noch zu
+bestätigen (Nutzer prüft nach).
 
 **Skalierung geklärt:** Steigung Kühlkurve ÷100 (wie Heizkurve), Temperaturen
 ÷10. Modul = `0x601` → Schreiben voraussichtlich analog Heizkurve
@@ -651,7 +659,8 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
     - [x] **Min-Temp (Temperatur) + Raumeinfluss gerätebestätigt** (30.07., `logs/hk-parameter-write-test.log`): `C0 01 FA 4E A7 00 A0` = 16 °C, `C0 01 FA 4E A4 00 0A` = 10 % (18 % → Gerät speichert 20 %). Display übernimmt.
     - [x] **Minimal-Temp „Aus" als HA-Write gerätebestätigt** (30.07., `logs/aus-write-test.log`): Schieber 0/5 → `TX 0x680 C0 01 FA 4E A7 90 00`, Echo `D2 .. 90 00`, Display „Aus"; Schieber 10 → `.. 00 64`, Display 10 °C.
 - [x] **Kühlkurve auslesen** (30.07.) – Menü `Kühlen → Kühlkreis 1` komplett auf Modul `0x601` (wie Heizen): `0x4F08` Ein/Aus, `0x4F04` Raumsolltemp ÷10, `0x4F05` KühlART, `0x4FB9` Steigung Kühlkurve ÷100, `0x4FBE` Starttemp ÷10. Drei Zahlenwerte display-bestätigt. Details im Abschnitt „Kühlkurve / Menü Kühlen".
-  - [ ] KühlART-Enum (`0x4F05`) + Ein/Aus (`0x4F08`) wert-eindeutig bestätigen (Modi durchschalten)
+  - [x] **KühlART + Ein/Aus wert-bestätigt** (30.07., `logs/kuehlart-enum.log`): `0x4F05` 1=Flächenkühlung/0=Gebläsekühlung, `0x4F08` 1=EIN/0=AUS. Zusätzlich `0x4F07` = übergeordneter Schalter „KÜHLEN" (1=EIN/0=AUS, Modul ≠ 0x601). Alle per Toggle 1→0→1 bestätigt.
+    - [ ] Exakten Display-Namen von `0x4F07` bestätigen (Nutzer prüft nach)
   - [x] **Grundeinstellung disambiguiert** (30.07.): `0x4F00` = Hysterese Vorlauftemp (÷10, 4,0–10,0 K, auf 0x180), `0x7A40` = Leistung (÷10, 1,0–4,0 kW, auf 0x480). Per Display-Änderung 4,0→5,0→4,0 K bestätigt, F8/F9-Grenzen mit abgegriffen.
   - [ ] `F8`/`F9`-Gerätegrenzen für Kühl-Parameter abgreifen (Edit-Screens gezielt öffnen)
   - [ ] Read-Entities fürs Kühlen ins Manifest (nach Nutzer-OK)
