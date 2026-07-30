@@ -561,15 +561,16 @@ canbus:
               }
 
               // --- KOMFORTTEMPERATUR / ECO-TEMPERATUR Heizkreis: Index 0x4EB8/0x4EB9 auf 0x100/0x601 ---
-              // Nur lesend! Schreib-Versuch am 21.07.2026 fehlgeschlagen
-              // (Anlage antwortete mit val=0 statt Bestaetigung - vermutlich
-              // falsches Schreibformat fuer diese Indizes). Erstmal wieder
-              // read-only, bis das Format besser verstanden ist.
+              // Schreiben ueber 0x680 mit C0 01 FA 4E B8/B9 (Modul 0x601,
+              // Nibble 0 = Setzen), abgeleitet aus dem bestaetigten Heizkurven-
+              // Write. set-Entities unten; Rueckmeldung wird hier gespiegelt.
               if (idx == 0x4EB8 && (can_id == 0x100 || can_id == 0x601)) {
                 id(komforttemperatur_hk).publish_state(val / 10.0f);
+                id(komforttemperatur_hk_set).publish_state(val / 10.0f);
               }
               if (idx == 0x4EB9 && (can_id == 0x100 || can_id == 0x601)) {
                 id(ecotemperatur_hk).publish_state(val / 10.0f);
+                id(ecotemperatur_hk_set).publish_state(val / 10.0f);
               }
 
               // --- ENERGIEZAEHLER (Summe) auf CAN-ID 0x514 (IWS) ---
@@ -949,14 +950,57 @@ number:
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Steigung Heizkurve gesetzt auf: %.2f (roh=%d)", x, v);
 
-# =========================================================================
-# Komforttemperatur / Eco-Temperatur Heizkreis (Index 0x4EB8 / 0x4EB9):
-# Schreib-Versuch am 21.07.2026 zurueckgezogen - Anlage antwortete mit
-# val=0 (vermutlich "ungueltig/abgelehnt") statt einer echten Bestaetigung.
-# Die tatsaechliche Einstellung am Geraet blieb unveraendert (Sicherheits-
-# check bestaetigt: Display zeigte weiterhin korrekten Wert). Nur lesende
-# Sensoren oben im sensor:-Block bleiben aktiv. Schreib-Format fuer diese
-# beiden Indizes muss noch weiter erforscht werden, bevor ein erneuter
-# Versuch sinnvoll ist.
-# =========================================================================
+  # =======================================================================
+  # Komforttemperatur / Eco-Temperatur Heizkreis (Index 0x4EB8 / 0x4EB9,
+  # Mischermodul 0x601). Schreib-Format aus dem bestaetigten Heizkurven-
+  # Write abgeleitet: C0 01 FA 4E B8/B9 <hi> <lo> (Wert = degC * 10),
+  # gesendet ueber 0x680. NOCH NICHT am Geraet verifiziert - erster echter
+  # Schreibtest bewusst mit kleinem Schritt, TX-Log (C0 01 ..) UND Display-
+  # Kontrolle. Der alte 21.07.-Fehlschlag lag am falschen Header (32 00).
+  # Grenzen konservativ: Raumsolltemperaturen, kein Estrich-Risiko wie bei
+  # der Heizkurve, aber Extremwerte vermeiden. Geraete-Min/Max unbekannt.
+  # =======================================================================
+  - platform: template
+    name: "Komforttemperatur Heizkreis setzen"
+    id: komforttemperatur_hk_set
+    optimistic: false
+    min_value: 10.0
+    max_value: 28.0
+    step: 0.1
+    unit_of_measurement: "°C"
+    device_class: temperature
+    set_action:
+      - lambda: |-
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4E, 0xB8, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Komforttemperatur gesetzt auf: %.1f (roh=%d)", x, v);
+
+  - platform: template
+    name: "Eco-Temperatur Heizkreis setzen"
+    id: ecotemperatur_hk_set
+    optimistic: false
+    min_value: 5.0
+    max_value: 24.0
+    step: 0.1
+    unit_of_measurement: "°C"
+    device_class: temperature
+    set_action:
+      - lambda: |-
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4E, 0xB9, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Eco-Temperatur gesetzt auf: %.1f (roh=%d)", x, v);
 
