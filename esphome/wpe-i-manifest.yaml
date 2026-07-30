@@ -699,6 +699,7 @@ canbus:
               }
               if (idx == 0x4F00 && (can_id == 0x100 || can_id == 0x180)) {
                 id(hysterese_vorlauf_kuehlen).publish_state(val / 10.0f);
+                id(hysterese_vorlauf_kuehlen_set).publish_state(val / 10.0f);
               }
               if (idx == 0x7A40 && (can_id == 0x100 || can_id == 0x480)) {
                 id(leistung_kuehlen).publish_state(val / 10.0f);
@@ -863,9 +864,9 @@ interval:
           std::vector<uint8_t> k6 = {0x91, 0x00, 0xFA, 0x7A, 0x40, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, k6);
           // KUEHLEN-Schalter 0x4F07 + Hysterese 0x4F00 auf Modul 0x180
-          // (Header 31 00 = generate_read_id(0x180)). ABGELEITET, noch NICHT
-          // geraeteverifiziert - im naechsten Log pruefen, ob Antwort kommt;
-          // falls nicht, Zielmodul/Header korrigieren.
+          // (Header 31 00 = generate_read_id(0x180)). GERAETEBESTAETIGT
+          // (30.07.2026, logs/kuehlen-verify.log): beide Indizes werden im
+          // Poll-Takt beantwortet.
           std::vector<uint8_t> k7 = {0x31, 0x00, 0xFA, 0x4F, 0x07, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, k7);
           std::vector<uint8_t> k8 = {0x31, 0x00, 0xFA, 0x4F, 0x00, 0x00, 0x00};
@@ -1078,9 +1079,10 @@ select:
 
   # =======================================================================
   # Kuehlkreis 1 Ein/Aus (0x4F08) + KuehlART (0x4F05), Mischermodul 0x601.
-  # Schreib-Header C0 01 FA <idx> 00 <v> aus dem bestaetigten Heizkurven-
-  # Write abgeleitet (gleiches Modul). NOCH NICHT geraeteverifiziert -
-  # erster Schreibtest mit TX-Log (C0 01 ..) UND Display-Kontrolle.
+  # Schreib-Header C0 01 FA <idx> 00 <v>. 0x4F08 SCHREIBEN GERAETEBESTAETIGT
+  # (30.07.2026, logs/kuehlen-verify.log): TX C0 01 FA 4F 08 00 00/01 -> Geraet
+  # meldete ~0,8 s spaeter den neuen Wert, auch am Display verifiziert.
+  # KuehlART 0x4F05 gleiches Modul/Format, noch nicht einzeln geschrieben-getestet.
   # Enum-Werte 30.07.2026 lesend bestaetigt (1=Ein/Flaeche, 0=Aus/Geblaese).
   # =======================================================================
   - platform: template
@@ -1128,15 +1130,13 @@ select:
           id(my_canbus).send_data(0x680, false, rb);
 
   # =======================================================================
-  # Uebergeordneter Schalter KUEHLEN (Index 0x4F07). Anders als Kuehlkreis 1
-  # (0x601) ist dies ein Manager-/System-Wert (0x4Fxx) wie die Betriebsart
-  # (0x4F1B). Schreib-Header daher als 32 00 (Modul 0x180) angesetzt -
-  # identisch zum GERAETEVERIFIZIERTEN Betriebsart-Write. Fuer 0x4F07 selbst
-  # aber NOCH NICHT verifiziert: erster Test = aktuellen Wert zurueckschreiben
-  # (Ein->Ein / Aus->Aus, keine echte Aenderung) und im Log pruefen, ob die
-  # WPM einen frischen 0x4F07-Broadcast sendet = Telegramm akzeptiert. Danach
-  # echter Umschalt-Test mit Display-Kontrolle. Read-back-Header 31 00 (0x180)
-  # ist ebenfalls noch abgeleitet (vgl. Poll-Kommentar).
+  # Uebergeordneter Schalter KUEHLEN (Index 0x4F07). Manager-/System-Wert
+  # (0x4Fxx) wie die Betriebsart (0x4F1B), daher Schreib-Header 32 00
+  # (Modul 0x180). SCHREIBEN GERAETEBESTAETIGT (30.07.2026,
+  # logs/kuehlen-verify.log): TX 32 00 FA 4F 07 00 00 -> Geraet meldete
+  # 0,56 s spaeter 0x4F07 val=0, TX ..00 01 -> 0,86 s spaeter val=1; beide
+  # Richtungen auch am WPM-Display verifiziert. Read-back-Header 31 00
+  # (0x180) ebenfalls geraetebestaetigt (Poll wird beantwortet).
   # =======================================================================
   - platform: template
     name: "Kuehlen setzen"
@@ -1422,5 +1422,38 @@ number:
       - delay: 250ms
       - lambda: |-
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0xBE, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  # =======================================================================
+  # Hysterese Vorlauftemp Kuehlen (Index 0x4F00, Manager-Modul 0x180).
+  # Schreib-Header 32 00 - identisch zum am 30.07.2026 GERAETEBESTAETIGTEN
+  # KUEHLEN-Write (0x4F07, gleiches Modul 0x180). Index 0x4F00 selbst noch
+  # nicht schreibend getestet: erster Test mit kleinem Schritt (4,0 -> 4,5)
+  # + TX-Log (32 00 FA 4F 00 ..) UND Display-Kontrolle. Grenzen =
+  # Geraetebereich (F8/F9: 4,0-10,0 K).
+  # =======================================================================
+  - platform: template
+    name: "Hysterese Vorlauf Kuehlen setzen"
+    id: hysterese_vorlauf_kuehlen_set
+    optimistic: false
+    min_value: 4.0
+    max_value: 10.0
+    step: 0.1
+    unit_of_measurement: "K"
+    set_action:
+      - lambda: |-
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x00, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Hysterese Vorlauf Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          std::vector<uint8_t> rb = {0x31, 0x00, 0xFA, 0x4F, 0x00, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 

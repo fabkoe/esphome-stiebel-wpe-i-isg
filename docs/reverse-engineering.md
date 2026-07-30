@@ -299,17 +299,24 @@ Flächenkühlung→Gebläsekühlung→zurück.
 | Hysterese Vorlauftemp | `0x4F00` | 4,0–10,0 K | 0,1 |
 | Leistung | `0x7A40` | 1,0–4,0 kW | 0,1 |
 
-**Übergeordneter Schalter „KÜHLEN" (Modul ≠ 0x601):** Index `0x4F07`,
-1=EIN / 0=AUS, per Toggle 1→0→1 bestätigt (30.07.). Quell-CAN-IDs `0x180`
-(Broadcast) bzw. `0x100` (beim Schalten) – liegt also NICHT auf `0x601`,
-sondern auf einem eigenen Modul (wie Hysterese/Leistung). Beim Ausschalten
-kaskadieren Folge-Frames (u. a. `0x4ECD` 4→0). Exakter Display-Name noch zu
-bestätigen (Nutzer prüft nach).
+**Übergeordneter Schalter „KÜHLEN" (Manager-Modul 0x180):** Index `0x4F07`,
+1=EIN / 0=AUS. **Lesen UND Schreiben am 30.07.2026 gerätebestätigt**
+(`logs/kuehlen-verify.log`): Lese-Poll `31 00 FA 4F 07` wird im Takt beantwortet;
+Schreiben mit **`32 00 FA 4F 07 00 <v>`** (wie Betriebsart, Manager-Modul `0x180`)
+→ `TX ..00` ließ das Gerät 0,56 s später `0x4F07 val=0` melden, `TX ..01` → 0,86 s
+später `val=1`, beide Richtungen am Display verifiziert. Damit ist der
+`0x180`-Manager-Schreibpfad (`32 00`) auch für Kühl-Indizes bestätigt – gilt
+analog für die Hysterese (`0x4F00`, gleiches Modul). Beim Ausschalten
+kaskadieren Folge-Frames (u. a. `0x4ECD` 4→0). Exakter Display-Name noch offen.
 
 **Skalierung geklärt:** Steigung Kühlkurve ÷100 (wie Heizkurve), Temperaturen
-÷10. Modul = `0x601` → Schreiben voraussichtlich analog Heizkurve
-`C0 01 FA <idx> <hi> <lo>` (Lesen `C1 01 FA <idx> 00 00`). **Noch nicht per
-Display-Sniff/Schreibtest bestätigt** – vor jedem Write Format bestätigen.
+÷10. Modul = `0x601` → Schreiben `C0 01 FA <idx> <hi> <lo>` (Lesen
+`C1 01 FA <idx> 00 00`). **`0x4F08` (Kühlkreis Ein/Aus) am 30.07.2026 schreibend
+gerätebestätigt** (`logs/kuehlen-verify.log`): `TX C0 01 FA 4F 08 00 00/01` →
+Gerät meldete ~0,8 s später den neuen Wert, am Display verifiziert. Damit ist
+`C0 01` fürs Kühlmenü (wie schon für die Heizkurve) bestätigt; die übrigen
+`0x601`-Werte (`0x4F04`/`0x4FB9`/`0x4FBE`/`0x4F05`) nutzen dasselbe Format,
+sind aber noch nicht einzeln geschrieben-getestet.
 
 **Menü `Kühlen → Grundeinstellung` (30.07., disambiguiert, `logs/kuehlen-hysterese.log`):**
 Beide Werte standen initial auf 4.0. Durch Ändern der Hysterese am Display
@@ -324,14 +331,18 @@ Beide Werte standen initial auf 4.0. Durch Ändern der Hysterese am Display
 `F8`/`F9`-Frames: `22 00 F8 4F 00 00 28`/`22 00 F9 4F 00 00 64` (Hysterese
 4,0–10,0 K), `22 00 F8 7A 40 00 0A`/`22 00 F9 7A 40 00 28` (Leistung 1,0–4,0 kW).
 **Wichtig:** Diese zwei liegen NICHT auf `0x601` (Kühlkurve), sondern auf eigenen
-Modulen (Hysterese `0x180`, Leistung `0x480`) → Lese-/Schreib-Adressierung
-separat bestimmen.
+Modulen. **Hysterese `0x4F00` = Manager-Modul `0x180`:** Lese-/Schreib-Adressierung
+am 30.07. über den bestätigten `0x4F07`-Write geklärt – Lesen `31 00`, Schreiben
+`32 00` (Index selbst noch nicht schreibend getestet, Entity gebaut). **Leistung
+`0x7A40` = Modul `0x480`:** Schreib-Modul noch offen (Lese- ≠ Schreib-Modul, vgl.
+Betriebsart) – bewusst noch keine Schreib-Entity.
 
-**Noch offen:** `F8`/`F9`-Gerätegrenzen (Edit-Screens waren im Lese-Log nicht
-geöffnet), KühlART-Enum-Werte, Schreibformat-Bestätigung, Grundeinstellung-
-Disambiguierung. **Achtung Schreibformat:** `32 00 FA ...` ist NICHT generisch –
-funktionierte nur fürs Betriebsart-Modul (0x480), beim Mischermodul (0x601) war
-das korrekte Set-Nibble 0 (`C0 01`). Pro Zielmodul per Display-Sniff bestätigen.
+**Noch offen:** Leistungs-Schreibmodul (`0x7A40`), exakter Display-Name des
+KÜHLEN-Schalters, Einzel-Schreibtests der `0x601`-Werte + Hysterese.
+**Achtung Schreibformat:** `32 00 FA ...` ist NICHT generisch – es ist der
+**Manager-Modul-Weg** (`0x180`: Betriebsart `0x4F1B`, KÜHLEN `0x4F07`,
+Hysterese `0x4F00`). Beim Mischermodul (`0x601`: Heiz-/Kühlkurve) ist das Set-
+Nibble 0 (`C0 01`). Pro Zielmodul den Weg wählen, nicht generisch anwenden.
 
 ### Geplantes Vorgehen (Lesen) – bereits erfolgreich angewendet für Betriebsart & Steigung Heizkurve
 
