@@ -108,11 +108,17 @@ ESPHome-CLI, nicht über das HA-Add-on.
 
 ## Aktueller Stand / nächste Schritte
 
-Siehe TODO-Sektion in `docs/reverse-engineering.md`. Kurzfassung:
-13 Werte lesend bestätigt, Betriebsart schreibend bestätigt, Parser-Fix
-für Anfrage/Antwort-Unterscheidung drin (am Gerät zu verifizieren),
-Komforttemperatur-Schreibtest mit Fix wiederholen, Kühlkurve +
-Prozessdaten + Energiewerte noch offen. PoC mit `ha-stiebel-control`
+Siehe TODO-Sektion in `docs/reverse-engineering.md`. Kurzfassung (30.07.2026):
+Heizkreis-1-Menü komplett gelesen + schreibend gerätebestätigt
+(Betriebsart, Heizkurve, Komfort/Eco/Min-Temp/Raumeinfluss).
+Prozessdaten + Energie-/Laufzeitzähler bestätigt und im Manifest.
+Kühlen-Menü: alle 8 Werte lesend bestätigt; schreibend gerätebestätigt
+sind Kühlkreis Ein/Aus (`0x4F08`, `C0 01`), KÜHLEN-Schalter (`0x4F07`)
+und Hysterese (`0x4F00`) – beide `0x180` via `32 00`. Offen: Einzel-
+Schreibtests der drei `0x601`-Temperaturen + KühlART, und Leistung
+`0x7A40` (Schreib-Modul unklar). **Schreib-Systematik:** `0x601`-Modul
+→ `C0 01`, `0x180`-Manager → `32 00` (kein generischer Header!).
+PoC mit `ha-stiebel-control`
 abgeschlossen: Framework liest die WPE-I bei 50 kbps korrekt
 (display-verifiziert), taugt aber nur als RE-Werkzeug/Backup, nicht als
 Ersatz – Details im PoC-Abschnitt der docs.
