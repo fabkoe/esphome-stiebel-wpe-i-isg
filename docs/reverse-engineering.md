@@ -289,6 +289,16 @@ Toggle-Test bestätigt (30.07., `logs/kuehlart-enum.log`): `0x4F08` 1→0→1 be
 Ein-/Ausschalten des Kühlkreises, `0x4F05` 1→0→1 beim Wechsel
 Flächenkühlung→Gebläsekühlung→zurück.
 
+**Gerätebereiche + Schrittweiten (30.07., am Display abgelesen):**
+
+| Wert | Index | Bereich | Schritt |
+|---|---|---|---|
+| Raumsolltemperatur | `0x4F04` | 20,0–30,0 °C | 0,1 |
+| Starttemperatur | `0x4FBE` | 15,0–30,0 °C | 0,5 |
+| Steigung Kühlkurve | `0x4FB9` | 0,1–3,0 | 0,05 |
+| Hysterese Vorlauftemp | `0x4F00` | 4,0–10,0 K | 0,1 |
+| Leistung | `0x7A40` | 1,0–4,0 kW | 0,1 |
+
 **Übergeordneter Schalter „KÜHLEN" (Modul ≠ 0x601):** Index `0x4F07`,
 1=EIN / 0=AUS, per Toggle 1→0→1 bestätigt (30.07.). Quell-CAN-IDs `0x180`
 (Broadcast) bzw. `0x100` (beim Schalten) – liegt also NICHT auf `0x601`,
@@ -662,7 +672,7 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
   - [x] **KühlART + Ein/Aus wert-bestätigt** (30.07., `logs/kuehlart-enum.log`): `0x4F05` 1=Flächenkühlung/0=Gebläsekühlung, `0x4F08` 1=EIN/0=AUS. Zusätzlich `0x4F07` = übergeordneter Schalter „KÜHLEN" (1=EIN/0=AUS, Modul ≠ 0x601). Alle per Toggle 1→0→1 bestätigt.
     - [ ] Exakten Display-Namen von `0x4F07` bestätigen (Nutzer prüft nach)
   - [x] **Grundeinstellung disambiguiert** (30.07.): `0x4F00` = Hysterese Vorlauftemp (÷10, 4,0–10,0 K, auf 0x180), `0x7A40` = Leistung (÷10, 1,0–4,0 kW, auf 0x480). Per Display-Änderung 4,0→5,0→4,0 K bestätigt, F8/F9-Grenzen mit abgegriffen.
-  - [ ] `F8`/`F9`-Gerätegrenzen für Kühl-Parameter abgreifen (Edit-Screens gezielt öffnen)
+  - [x] **Gerätebereiche + Schrittweiten abgelesen** (30.07.): Raumsoll 20–30 °C/0,1; Starttemp 15–30 °C/0,5; Steigung Kühlkurve 0,1–3,0/0,05; Hysterese 4–10 K/0,1; Leistung 1–4 kW/0,1. Siehe Tabelle im Kühlkurve-Abschnitt.
   - [ ] Read-Entities fürs Kühlen ins Manifest (nach Nutzer-OK)
 - [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – ACHTUNG: `32 00 FA ...` ist NICHT generisch. Es funktioniert nur fürs Betriebsart-Modul (0x480); beim Mischermodul (0x601, Heizkurve) blieb es wirkungslos (siehe Heizkurve-Schreiben oben). Schreib-Adressierung ist modulspezifisch und ≠ Lese-Header → pro Zielmodul per Display-Sniff bestätigen
 - [ ] **Schreib-Service in ESPHome ergänzen** (number/select-Entities) – erst nachdem Set-Format bestätigt ist, mit Min/Max-Grenzen im Code
