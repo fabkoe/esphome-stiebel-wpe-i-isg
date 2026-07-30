@@ -524,9 +524,24 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
 
 ## TODOs
 
+### ⏭️ Session-Übergabe (Stand 30.07.2026, Commit cc6bb54)
+**Erledigt heute:** Adressierungsformel komplett entschlüsselt (Schreiben =
+Nibble 0, `byte0=((Ziel>>3)&0xF0)|nibble`, `byte1=Ziel&0x1F`). Heizkurve
+schreiben **gerätebestätigt**. Vier weitere 0x601-Writes als Entities gebaut,
+aber **noch NICHT am Gerät verifiziert**: Komfort-Temp (0x4EB8), Eco-Temp
+(0x4EB9), Minimal-Temp (0x4EA7, „Aus"=0x9000), Raumeinfluss (0x4EA4) + Schalter
+„Minimal Temperatur aktiv".
+
+**➡️ Einziger offener nächster Schritt:** frisch geflashte Firmware am Gerät
+verifizieren – pro Write in HA kleinen Schritt setzen, im Log `TX id=0x680
+raw=C0 01 FA 4E ..` + kurz darauf Modul-Meldung `id=0x601 raw=22 00 FA 4E ..`
+mit gleichem Wert suchen, am WPM4-Display (HEIZKREIS 1) gegenprüfen. Reihenfolge:
+Raumeinfluss → Komfort/Eco → Minimal-Temp → Aus-Schalter (Display muss „Aus"
+zeigen) → wieder an. Danach die vier als bestätigt markieren.
+
 ### Als Nächstes (priorisiert)
 - [ ] **Parser-Fix verifizieren (21.07.)** – neu flashen, prüfen dass keine Sensoren mehr sporadisch auf 0/Unbekannt springen (Anfrage-Frames mit Cmd-Halbbyte 1 werden jetzt gefiltert)
-- [ ] **Komforttemperatur-Schreibtest wiederholen** – mit korrektem Parser; der alte "Fehlschlag" war vermutlich eine Fehlinterpretation (mitgelesene Anfrage statt Ablehnung)
+- [x] **Komforttemperatur-Schreibtest** – überholt: Schreibformat geklärt (`C0 01`), Entities gebaut, Geräte-Test siehe Session-Übergabe oben
 - [ ] **Aktive Betriebsart-Abfrage reparieren** – `41 01 FA 4F 1B` wird aktuell mit `-32768` auf 0x201 beantwortet (falsches Zielmodul); Betriebsart-Wert kommt derzeit nur über Broadcasts bei echten Wechseln. Anderes Anfrage-Header-Muster nötig
 - [x] **Betriebsart auslesen** – Index `0x4F1B` bestätigt (Bereitschaft=1, Komfort=3, Eco=4, Warmwasser=5 alle verifiziert)
   - [ ] Programmbetrieb (erwartet: 2) verifizieren
