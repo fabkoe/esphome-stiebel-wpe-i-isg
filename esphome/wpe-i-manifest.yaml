@@ -913,16 +913,16 @@ select:
           ESP_LOGI("wpe_i", "Betriebsart gesetzt auf: %s (%d)", x.c_str(), v);
 
 # =========================================================================
-# Steigung Heizkurve (Index 0x4F2B) - NUR LESEND bestaetigt.
-# ACHTUNG: Schreiben mit dem hier verwendeten Betriebsart-Header
-# (0x32 00 FA ...) ist NACHWEISLICH WIRKUNGSLOS - Test 29.07.2026
-# (wpei-iws-1.log): zwei Schreibversuche, KEINE Antwort der Anlage,
-# Index 0x4F2B taucht danach nicht auf. Grund: 0x32-Header adressiert
-# das Betriebsart-Modul (0x480), die Heizkurve liegt aber auf dem
-# Mischermodul (0x601). Das Set-Format ist modulspezifisch und muss
-# erst per Display-Sniff fuer 0x601 ermittelt werden (siehe docs).
-# Der untenstehende Sendecode bleibt als Geruest, bis der korrekte
-# Header bekannt ist - liefert derzeit KEINE Wirkung am Geraet.
+# Steigung Heizkurve (Index 0x4F2B, Mischermodul 0x601) - Lesen bestaetigt.
+# Schreib-Header aus Display-Sniff abgeleitet (30.07.2026,
+# logs/heizkurve-write-sniff.log): das WPM aenderte 0,40<->0,50 mit
+#   100: C0 01 FA 4F 2B <hi> <lo>   (C0 01 = Setzen/Nibble 0 an 0x601)
+# das Mischermodul bestaetigte danach mit Broadcast 22 00 FA 4F 2B <wert>.
+# Wir spiegeln das Payload, senden es aber ueber 0x680 (nie 0x100).
+# NOCH NICHT verifiziert ist, ob die Anlage unseren Schreibbefehl von
+# 0x680 aus akzeptiert - erster echter Schreibtest daher bewusst mit
+# kleinem Schritt, TX-Log (C0 01 ..) UND Display-Kontrolle.
+# Geraete-Gueltigkeitsbereich laut Sniff (F8/F9-Frames): 0,20 - 3,00.
 #
 # Grenzen bewusst konservativ gewaehlt (0,1-2,5): laut Betriebsanleitung
 # koennen falsche Heizkurven-Werte zu Schaeden an Waermepumpe oder
@@ -943,7 +943,7 @@ number:
           int16_t v = (int16_t) round(x * 100.0f);
           uint8_t val_hi = (v >> 8) & 0xFF;
           uint8_t val_lo = v & 0xFF;
-          std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x2B, val_hi, val_lo};
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x2B, val_hi, val_lo};
           id(my_canbus).send_data(0x680, false, w);
           char txbuf[24];
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",

@@ -40,8 +40,17 @@ Werte sind i. d. R. **big-endian int16**, durch **10 geteilt** für Nachkommaste
 | Cmd-Halbbyte (unten) | Bedeutung | Beispiele |
 |---|---|---|
 | `1` | Lese-Anfrage (Wertefeld = 0, ignorieren!) | `0x41`, `0xA1`, `0x91`, `0x31` |
-| `2` | Antwort / Schreibbefehl | `0x22`, `0x32` |
-| `0` | Broadcast | `0x20`, `0x80`, `0xE0`, `0xA2` |
+| `2` | Wert-Meldung / Antwort des Moduls | `0x22`, `0x32`, `0xD2` |
+| `0` | Broadcast **und Setzen/Schreiben** (Wertefeld gültig) | `0x20`, `0x80`, `0xE0`, `0xA2`, `0xC0` |
+
+**Präzisierung (30.07.2026, Heizkurven-Schreib-Sniff):** Ein echter
+*Schreibbefehl* nutzt Halbbyte **`0`** (Setzen), nicht `2`. Das WPM setzte die
+Heizkurve mit `C0 01 FA 4F 2B <wert>`; das Zielmodul *meldete* den neuen Wert
+danach mit Halbbyte `2` (`22 00 FA 4F 2B <wert>`). Die frühere Zuordnung
+„`2` = Schreibbefehl" war also ungenau – `2` ist die Melde-/Antwortrichtung,
+`0` die Schreib-/Broadcast-Richtung. (Der bisher für Betriebsart funktionierende
+`0x32`-Write mit Halbbyte `2` bleibt ein noch nicht final erklärter Sonderfall –
+für das Mischermodul war eindeutig `C0`/Halbbyte `0` nötig.)
 
 Ohne diesen Filter sprangen Sensoren sporadisch auf 0, sobald die WPM intern denselben Index angefragt hat – das war auch die Ursache für die zwischenzeitlich beobachteten "Unbekannt (0)"-Anzeigen in Home Assistant. Der vermeintlich "abgelehnte" Komforttemperatur-Schreibversuch vom 21.07. war daher vermutlich falsch interpretiert: Das empfangene `val=0` war eine mitgelesene *Anfrage*, keine Ablehnung.
 
@@ -182,6 +191,14 @@ CAN-ID 0x680:  32 00 FA 01 12 02 00
 **Offene Unsicherheiten für unseren Fall (Index `0x4F1B`):**
 - Ob Byte0 `0x32` auch für unseren Index/unser Gerät passt, oder ob das erste Halbbyte eine Art Ziel-Adressierung ist
 - Byte-Reihenfolge des Werts (big- vs. little-endian) für diesen spezifischen Index
+
+> **Nachtrag (30.07.2026): Ziel-Adressierung bestätigt.** Byte0/Byte1 kodieren
+> tatsächlich das Zielmodul: `byte0 = ((Ziel>>3)&0xF0) | Halbbyte`, `byte1 =
+> Ziel & 0x1F`. Für Betriebsart (0x480) hat der `0x32`-Write empirisch
+> funktioniert; für die Heizkurve (Mischermodul 0x601) war das der Grund des
+> Fehlschlags – dort ist `C0 01` nötig (siehe Heizkurven-Schreib-Sniff und die
+> präzisierte Cmd-Halbbyte-Tabelle oben). Werte waren bei allen bestätigten
+> Indizes big-endian.
 
 **Sicherer Test implementiert:** Button "Betriebsart Test-Rueckschreiben" im Manifest – schreibt bewusst nur den aktuell bekannten Wert zurück (keine echte Änderung), um zu prüfen, ob die WPM das Telegramm überhaupt akzeptiert (sichtbar an erneutem Broadcast auf `idx=0x4F1B` im Log, ohne Fehler). Erst danach sollte ein echter Schreib-Service mit variablem Zielwert gebaut werden.
 
@@ -506,7 +523,9 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
   - [ ] Not-Betrieb (erwartet: 6) – bewusst nicht aktiv testen (Notfallmodus)
 - [x] **Betriebsart-Schreiben getestet und bestätigt** – select-Entity in HA verfügbar, Komfort/Eco per CAN-Schreibbefehl erfolgreich verifiziert (Display wechselt sichtbar)
 - [x] **Steigung Heizkurve auslesen** – Index `0x4F2B` bestätigt (0,40→0,45→0,40 verifiziert). Lese-Header `C1 01` (= `generate_read_id(0x601)`) am 29.07. **gerätebestätigt** (war zuvor nur abgeleitet).
-  - [ ] **Steigung Heizkurve schreiben – Fehlschlag analysiert (29.07., `wpei-iws-1.log`).** Zwei Schreibversuche (0,40 / 1,00) mit `32 00 FA 4F 2B hi lo` über 0x680 → **keine Antwort der Anlage**, Index `0x4F2B` taucht danach nirgends auf, Mischermodul 0x601 sendet nur weiter seinen `0x4EB4`-Broadcast. **Fehlerbild = falsches Zielmodul.** Der `32 00`-Header ist NICHT der Lese-Header (`C1 01`) und stammt vom Betriebsart-Schreiben (Modul 0x480) – er adressiert die falsche Empfängeradresse. **Nächster Schritt:** display-seitige Heizkurven-Änderung am WPM sniffen (Sniffer loggt Rohbytes), um die korrekte Schreib-Adressierung fürs 0x601 abzulesen. Danach Schreib-Telegramm anpassen und erneut mit Log+Display testen.
+  - [x] **Steigung Heizkurve – korrektes Schreib-Format per Display-Sniff ermittelt (30.07., `logs/heizkurve-write-sniff.log`).** Das WPM änderte 0,40↔0,50 mit einem **einzelnen Frame** auf CAN-ID 0x100: `C0 01 FA 4F 2B <hi> <lo>` (0x32=0,50 / 0x28=0,40). Das Mischermodul 0x601 bestätigte je ~1,4 s später per Broadcast `22 00 FA 4F 2B <wert>`, Display zeigte den neuen Wert. **Erkenntnis:** Der frühere Fehlschlag mit `32 00` hatte ZWEI Fehler – falsches Modul UND falsches Kommando-Nibble. Korrekt ist Nibble **0** (Setzen) statt 2, plus Modul-Adressierung via `((0x601>>3)&0xF0)|0 = C0`, `0x601&0x1F = 01`. Manifest angepasst (`C0 01 …`, weiter über 0x680). Geräte-Gültigkeitsbereich laut `F8`/`F9`-Frames: **0,20–3,00**.
+    - [ ] **Unseren eigenen Schreibbefehl von 0x680 verifizieren** – Format ist display-bestätigt, aber ob die Anlage den Write von unserer 0x680-Absender-ID akzeptiert, ist noch offen (Betriebsart-Write von 0x680 klappt → gute Chancen). Kleiner Schritt, TX-Log (`C0 01 …`) + Broadcast `22 00 FA 4F 2B` + Display kontrollieren.
+    - [ ] Optional: number-Entity-Untergrenze von 0,1 auf 0,2 anheben (Gerätemin), damit keine unter-Bereich-Werte gesendet werden
   - [ ] Schreibformat für Komforttemperatur/Eco-Temperatur (0x4EB8/0x4EB9) herausfinden – erster Versuch mit `32 00 FA ...` schlug fehl (Anlage antwortete val=0), Gerät blieb unverändert. Evtl. anderer Byte0-Header oder andere Zieladressierung nötig, ähnlich wie bei WW-Soll (`41 01` statt `A1 14`) herausgefunden
   - [ ] Niveau/Komfort-Temperatur der Heizkurve auslesen (eigener Index, noch offen)
   - [ ] Bonus-Kandidaten zuordnen: `0x4EA7`, `0x4EA4` auf 0x601 (Komforttemperatur `0x4EB8` und Eco-Temperatur `0x4EB9` bereits bestätigt)
