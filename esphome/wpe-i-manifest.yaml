@@ -240,6 +240,46 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
 
+  # --- Kuehlen (Menue Einstellungen->Kuehlen), 30.07.2026 geraetegelesen ---
+  # Kuehlkreis 1 liegt auf Modul 0x601 (wie Heizkurve); Hysterese/Leistung
+  # auf eigenen Modulen (0x180/0x480). Nur-Lese-Sensoren, kein Schreiben.
+  - platform: template
+    name: "Raumsolltemperatur Kuehlen"
+    id: raumsolltemp_kuehlen
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Steigung Kuehlkurve"
+    id: steigung_kuehlkurve
+    accuracy_decimals: 2
+    state_class: measurement
+
+  - platform: template
+    name: "Starttemperatur Kuehlen"
+    id: starttemp_kuehlen
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Hysterese Vorlauf Kuehlen"
+    id: hysterese_vorlauf_kuehlen
+    unit_of_measurement: "K"
+    state_class: measurement
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Leistung Kuehlen"
+    id: leistung_kuehlen
+    unit_of_measurement: "kW"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 1
+
   # --- Energiezaehler (Summe seit Inbetriebnahme) ---
   # Kombiniert aus MWh- und kWh-Register (kWh = MWh*1000 + kWh).
   # device_class energy + total_increasing => direkt im HA-Energy-Dashboard.
@@ -467,6 +507,17 @@ text_sensor:
     name: "Betriebsart"
     id: betriebsart_text
 
+  # --- Kuehlen: Schalter/Enums (30.07.2026 wert-bestaetigt) ---
+  - platform: template
+    name: "Kuehlen"
+    id: kuehlen_status
+  - platform: template
+    name: "Kuehlkreis 1"
+    id: kuehlkreis_status
+  - platform: template
+    name: "Kuehlart"
+    id: kuehlart_text
+
 canbus:
   - platform: esp32_can
     id: my_canbus
@@ -609,6 +660,44 @@ canbus:
                 id(raumeinfluss_hk_set).publish_state(val);
               }
 
+              // --- KUEHLEN: Kuehlkreis 1 (Modul 0x601, wie Heizkreis) ---
+              // Indizes 30.07.2026 geraetegelesen (logs/kuehlen-read.log,
+              // logs/kuehlart-enum.log). Nur Lesen.
+              if (idx == 0x4F04 && (can_id == 0x100 || can_id == 0x601)) {
+                id(raumsolltemp_kuehlen).publish_state(val / 10.0f);
+              }
+              if (idx == 0x4FB9 && (can_id == 0x100 || can_id == 0x601)) {
+                id(steigung_kuehlkurve).publish_state(val / 100.0f);
+              }
+              if (idx == 0x4FBE && (can_id == 0x100 || can_id == 0x601)) {
+                id(starttemp_kuehlen).publish_state(val / 10.0f);
+              }
+              if (idx == 0x4F08 && (can_id == 0x100 || can_id == 0x601)) {
+                id(kuehlkreis_status).publish_state(val == 1 ? "Ein" : "Aus");
+              }
+              if (idx == 0x4F05 && (can_id == 0x100 || can_id == 0x601)) {
+                std::string art;
+                switch (val) {
+                  case 1: art = "Flaechenkuehlung"; break;
+                  case 0: art = "Geblaesekuehlung"; break;
+                  default: art = "Unbekannt (" + std::to_string(val) + ")"; break;
+                }
+                id(kuehlart_text).publish_state(art);
+              }
+
+              // --- KUEHLEN: uebergeordneter Schalter + Grundeinstellung ---
+              // Diese liegen NICHT auf 0x601: 0x4F07/0x4F00 auf 0x180,
+              // 0x7A40 auf 0x480 (30.07.2026 bestaetigt).
+              if (idx == 0x4F07 && (can_id == 0x100 || can_id == 0x180)) {
+                id(kuehlen_status).publish_state(val == 1 ? "Ein" : "Aus");
+              }
+              if (idx == 0x4F00 && (can_id == 0x100 || can_id == 0x180)) {
+                id(hysterese_vorlauf_kuehlen).publish_state(val / 10.0f);
+              }
+              if (idx == 0x7A40 && (can_id == 0x100 || can_id == 0x480)) {
+                id(leistung_kuehlen).publish_state(val / 10.0f);
+              }
+
               // --- ENERGIEZAEHLER (Summe) auf CAN-ID 0x514 (IWS) ---
               // WICHTIG (Korrektur 29.07. abends): dieselben Indizes existieren
               // auch auf 0x500 (Heizmodul) mit ABWEICHENDEN Werten. Die
@@ -748,6 +837,33 @@ interval:
           id(my_canbus).send_data(0x680, false, req_mintemp);
           std::vector<uint8_t> req_raum = {0xC1, 0x01, 0xFA, 0x4E, 0xA4, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, req_raum);
+      - lambda: |-
+          // --- Kuehlen-Parameter ueber 0x680 abfragen ---
+          // Kuehlkreis 1 auf Modul 0x601 (Header C1 01 = generate_read_id(0x601),
+          // geraeteverifiziert): Raumsoll 0x4F04, Steigung 0x4FB9, Starttemp
+          // 0x4FBE, Kuehlkreis Ein/Aus 0x4F08, KuehlART 0x4F05.
+          std::vector<uint8_t> k1 = {0xC1, 0x01, 0xFA, 0x4F, 0x04, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, k1);
+          std::vector<uint8_t> k2 = {0xC1, 0x01, 0xFA, 0x4F, 0xB9, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, k2);
+          std::vector<uint8_t> k3 = {0xC1, 0x01, 0xFA, 0x4F, 0xBE, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, k3);
+          std::vector<uint8_t> k4 = {0xC1, 0x01, 0xFA, 0x4F, 0x08, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, k4);
+          std::vector<uint8_t> k5 = {0xC1, 0x01, 0xFA, 0x4F, 0x05, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, k5);
+          // Leistung 0x7A40 auf Modul 0x480 (Header 91 00 = generate_read_id(0x480),
+          // bereits fuer Betriebsart/Gesamtsystem geraeteverifiziert).
+          std::vector<uint8_t> k6 = {0x91, 0x00, 0xFA, 0x7A, 0x40, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, k6);
+          // KUEHLEN-Schalter 0x4F07 + Hysterese 0x4F00 auf Modul 0x180
+          // (Header 31 00 = generate_read_id(0x180)). ABGELEITET, noch NICHT
+          // geraeteverifiziert - im naechsten Log pruefen, ob Antwort kommt;
+          // falls nicht, Zielmodul/Header korrigieren.
+          std::vector<uint8_t> k7 = {0x31, 0x00, 0xFA, 0x4F, 0x07, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, k7);
+          std::vector<uint8_t> k8 = {0x31, 0x00, 0xFA, 0x4F, 0x00, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, k8);
       # --- Energiezaehler (IWS 0x514) ueber 0x680 abfragen ---
       # Header A1 14 = IWS-Anfrage, geraeteverifiziert (Ruecklauf-Poll,
       # IWS antwortet mit Cmd D2 auf 0x514). Korrektur 29.07.: die IWS
