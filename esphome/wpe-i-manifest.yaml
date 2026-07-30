@@ -1341,7 +1341,11 @@ number:
   # Kuehlen-Zahlenwerte (Mischermodul 0x601): Raumsolltemperatur (0x4F04),
   # Steigung Kuehlkurve (0x4FB9), Starttemperatur (0x4FBE).
   # Schreib-Format aus dem bestaetigten Heizkurven-Write abgeleitet
-  # (C0 01 FA <idx> <hi> <lo>, ueber 0x680). NOCH NICHT geraeteverifiziert -
+  # (C0 01 FA <idx> <hi> <lo>, ueber 0x680).
+  # Raumsolltemperatur 0x4F04 SCHREIBEN GERAETEBESTAETIGT (30.07.2026,
+  # logs\raumsoll-write.log): TX C0 01 FA 4F 04 00 C9 (20,1) -> Geraet meldete
+  # ~0,8 s spaeter val=201 (Broadcast 80 01 + Antwort D2 00), am Display 20,1,
+  # danach sauber auf 20,0 zurueck. 0x4FB9/0x4FBE NOCH NICHT geraeteverifiziert -
   # erster Schreibtest je Wert mit kleinem Schritt, TX-Log UND Display-
   # Kontrolle. Grenzen = am Display abgelesene Geraetebereiche (30.07.2026).
   # Achtung Kuehlkurve: zu steile Kurve -> tiefe Vorlauftemp -> Taupunkt-/

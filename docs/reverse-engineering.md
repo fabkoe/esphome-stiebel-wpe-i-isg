@@ -277,7 +277,7 @@ entspricht exakt der Display-Reihenfolge (positionsgenaue Zuordnung).
 | Index (0x601) | Menüpunkt (Display) | Skalierung | Test-Log-Wert | Status |
 |---|---|---|---|---|
 | `0x4F08` | **Kühlkreis Ein/Aus** | 1=EIN, 0=AUS | 1→0→1 | **bestätigt (Wert)** |
-| `0x4F04` | **Raumsolltemperatur Kühlen** | ÷10 → °C | 200 = 20,0 °C | **bestätigt (Wert)** |
+| `0x4F04` | **Raumsolltemperatur Kühlen** | ÷10 → °C | 200 = 20,0 °C | **bestätigt (Wert + Schreiben)** |
 | `0x4F05` | **KühlART** | 1=Flächenkühlung, 0=Gebläsekühlung | 1→0→1 | **bestätigt (Wert)** |
 | `0x4FB9` | **Steigung Kühlkurve** | ÷100 | 75 = 0,75 | **bestätigt (Wert)** |
 | `0x4FBE` | **Starttemperatur Kühlen** | ÷10 → °C | 185 = 18,5 °C | **bestätigt (Wert)** |
@@ -314,9 +314,14 @@ kaskadieren Folge-Frames (u. a. `0x4ECD` 4→0). Exakter Display-Name noch offen
 `C1 01 FA <idx> 00 00`). **`0x4F08` (Kühlkreis Ein/Aus) am 30.07.2026 schreibend
 gerätebestätigt** (`logs/kuehlen-verify.log`): `TX C0 01 FA 4F 08 00 00/01` →
 Gerät meldete ~0,8 s später den neuen Wert, am Display verifiziert. Damit ist
-`C0 01` fürs Kühlmenü (wie schon für die Heizkurve) bestätigt; die übrigen
-`0x601`-Werte (`0x4F04`/`0x4FB9`/`0x4FBE`/`0x4F05`) nutzen dasselbe Format,
-sind aber noch nicht einzeln geschrieben-getestet.
+`C0 01` fürs Kühlmenü (wie schon für die Heizkurve) bestätigt. **`0x4F04`
+(Raumsolltemperatur) am 30.07.2026 zusätzlich einzeln schreibend
+gerätebestätigt** (`logs/raumsoll-write.log`): `TX C0 01 FA 4F 04 00 C9` (20,1 °C)
+→ Gerät meldete ~0,8 s später `val=201` (Broadcast `80 01 ..` + Antwort
+`D2 00 ..`), am Display 20,1 °C, danach sauber auf 20,0 zurückgesetzt (auch
+Zwischenwert 21,8 gerätebestätigt). Die übrigen `0x601`-Werte
+(`0x4FB9`/`0x4FBE`/`0x4F05`) nutzen dasselbe Format, sind aber noch nicht
+einzeln geschrieben-getestet.
 
 **Menü `Kühlen → Grundeinstellung` (30.07., disambiguiert, `logs/kuehlen-hysterese.log`):**
 Beide Werte standen initial auf 4.0. Durch Ändern der Hysterese am Display
@@ -338,8 +343,8 @@ Modulen. **Hysterese `0x4F00` = Manager-Modul `0x180`:** Lesen `31 00`, Schreibe
 Betriebsart) – bewusst noch keine Schreib-Entity.
 
 **Noch offen:** Leistungs-Schreibmodul (`0x7A40`), exakter Display-Name des
-KÜHLEN-Schalters, Einzel-Schreibtests der drei `0x601`-Temperaturen
-(`0x4F04`/`0x4FB9`/`0x4FBE`) + KühlART (`0x4F05`).
+KÜHLEN-Schalters, Einzel-Schreibtests von Steigung Kühlkurve (`0x4FB9`) und
+Starttemp (`0x4FBE`) + KühlART (`0x4F05`). (`0x4F04` erledigt, s. o.)
 **Achtung Schreibformat:** `32 00 FA ...` ist NICHT generisch – es ist der
 **Manager-Modul-Weg** (`0x180`: Betriebsart `0x4F1B`, KÜHLEN `0x4F07`,
 Hysterese `0x4F00`). Beim Mischermodul (`0x601`: Heiz-/Kühlkurve) ist das Set-
@@ -688,7 +693,8 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
   - [x] **Read-Entities fürs Kühlen ins Manifest** (30.07.) – 5 Sensoren + 3 Text-Sensoren + aktiver 60s-Poll über 0x680. `0x180`-Lesepfad (`31 00`) gerätebestätigt (`logs/kuehlen-verify.log`).
   - [x] **Set-Telegramm-Format fürs Kühlen bestätigt** (30.07., `logs/kuehlen-verify.log`) – zwei Wege, modulspezifisch: `0x601`-Werte via `C0 01` (belegt an `0x4F08` Kühlkreis Ein/Aus), `0x180`-Manager-Werte via `32 00` (belegt an `0x4F07` KÜHLEN **und** `0x4F00` Hysterese). Jeweils Geräte-Rückmeldung + Display verifiziert.
   - [x] **Schreib-Entities Kühlen gebaut** – number: Raumsoll/Steigung/Starttemp (`0x601`, `C0 01`), Hysterese (`0x180`, `32 00`); select: Kühlkreis 1 + KühlART (`0x601`), KÜHLEN (`0x180`).
-    - [ ] Einzel-Schreibtests noch offen: `0x4F04`/`0x4FB9`/`0x4FBE` (Temperaturen, `0x601`) und `0x4F05` (KühlART) – Format je bestätigt, aber pro Index noch nicht geschrieben.
+    - [x] **`0x4F04` (Raumsolltemperatur) einzeln schreibend gerätebestätigt** (30.07., `logs/raumsoll-write.log`): 20,0→20,1→(21,8)→20,0, TX/Read-Back/Display konsistent.
+    - [ ] Einzel-Schreibtests noch offen: `0x4FB9`/`0x4FBE` (Temperaturen, `0x601`) und `0x4F05` (KühlART) – Format je bestätigt, aber pro Index noch nicht geschrieben.
     - [ ] **Leistung `0x7A40` (Modul `0x480`)**: Schreib-Modul unbekannt (Lese- ≠ Schreib-Modul), bewusst noch keine Schreib-Entity. Zuerst Schreibziel per No-Op-Test einkreisen.
 
 ### Prozessdaten / Energie (aus vorheriger Session offen)
