@@ -267,17 +267,45 @@ Screens sendet das Modul die Grenzen als `F8`=Min / `F9`=Max desselben Index
 (z. B. `22 00 F8 4E A7 00 64` = Min 10,0 °C, `22 00 F9 4E A7 01 2C` = Max
 30,0 °C) – nützlicher genereller RE-Trick zum Ablesen von Wertebereichen.
 
-#### Kühlkurve
+#### Kühlkurve / Menü „Kühlen" (30.07.2026, Lese-Log `logs/kuehlen-read.log`)
 
-Noch nicht getestet – im Menü `Einstellungen → Kühlen`, gleiches Vorgehen wie
-bei Steigung Heizkurve. **Offen:** Indizes, tragendes Modul/CAN-ID (0x601 wie
-Heizen oder eigenes?) und Skalierung. Konkreter Plan + übertragbarer
-Werkzeugkasten stehen im Abschnitt „⏭️ Session-Übergabe (nächste Session:
-Menü „Kühlen")" unter TODOs.
-**Achtung Schreibformat:** `32 00 FA ...` ist NICHT generisch – funktionierte
-nur fürs Betriebsart-Modul (0x480), beim Mischermodul (0x601) war das korrekte
-Set-Nibble 0 (`C0 01`). Schreib-Adressierung pro Zielmodul per Display-Sniff
-bestätigen, nicht raten.
+Menü `Einstellungen → Kühlen → Kühlkreis 1` ausgelesen. **Alle Parameter liegen
+auf Modul `0x601` (Mischermodul) – identisch zur Heizkurve.** Beim Öffnen des
+Menüs sendet das Modul einen Burst aller fünf Werte; die Frame-Reihenfolge
+entspricht exakt der Display-Reihenfolge (positionsgenaue Zuordnung).
+
+| Index (0x601) | Menüpunkt (Display) | Skalierung | Test-Log-Wert | Status |
+|---|---|---|---|---|
+| `0x4F08` | **Kühlkreis Ein/Aus** | Flag (1=EIN) | 1 = EIN | positionell zugeordnet |
+| `0x4F04` | **Raumsolltemperatur Kühlen** | ÷10 → °C | 200 = 20,0 °C | **bestätigt (Wert)** |
+| `0x4F05` | **KühlART** | Enum | 1 | positionell zugeordnet |
+| `0x4FB9` | **Steigung Kühlkurve** | ÷100 | 75 = 0,75 | **bestätigt (Wert)** |
+| `0x4FBE` | **Starttemperatur Kühlen** | ÷10 → °C | 185 = 18,5 °C | **bestätigt (Wert)** |
+
+Roh-Frames (Burst @ 12:47:33): `22 00 FA 4F 08 00 01`, `22 00 FA 4F 04 00 C8`,
+`22 00 FA 4F 05 00 01`, `22 00 FA 4F B9 00 4B`, `22 00 FA 4F BE 00 B9`.
+Die drei Zahlenwerte matchen exakt die Display-Anzeige → bestätigt. Die beiden
+Enums (`0x4F08` Ein/Aus, `0x4F05` KühlART, beide =1) sind nur über die
+Positions-Reihenfolge zugeordnet, wert-eindeutig noch offen.
+
+**Skalierung geklärt:** Steigung Kühlkurve ÷100 (wie Heizkurve), Temperaturen
+÷10. Modul = `0x601` → Schreiben voraussichtlich analog Heizkurve
+`C0 01 FA <idx> <hi> <lo>` (Lesen `C1 01 FA <idx> 00 00`). **Noch nicht per
+Display-Sniff/Schreibtest bestätigt** – vor jedem Write Format bestätigen.
+
+**Menü `Kühlen → Grundeinstellung` (Kandidaten, noch nicht disambiguiert):**
+Beide angezeigten Werte waren 4.0 → Roh 40 (÷10). Zwei passende Frames @ 12:47:56:
+`0x4F00` = 40 (Antwort via `0x180`, `22 00 FA 4F 00 00 28`) und `0x7A40` = 40
+(Antwort via `0x480`, `22 00 FA 7A 40 00 28`). Das sind **Leistung 4.0 kW** und
+**Hysterese Vorlauftemp 4.0 K**, aber weil beide 4.0 sind, ist die Zuordnung
+Index↔Bedeutung offen. **Zum Trennen:** einen Wert am Display um einen Schritt
+ändern und beobachten, welcher Index wandert.
+
+**Noch offen:** `F8`/`F9`-Gerätegrenzen (Edit-Screens waren im Lese-Log nicht
+geöffnet), KühlART-Enum-Werte, Schreibformat-Bestätigung, Grundeinstellung-
+Disambiguierung. **Achtung Schreibformat:** `32 00 FA ...` ist NICHT generisch –
+funktionierte nur fürs Betriebsart-Modul (0x480), beim Mischermodul (0x601) war
+das korrekte Set-Nibble 0 (`C0 01`). Pro Zielmodul per Display-Sniff bestätigen.
 
 ### Geplantes Vorgehen (Lesen) – bereits erfolgreich angewendet für Betriebsart & Steigung Heizkurve
 
@@ -614,7 +642,11 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
     - [x] Read-Sensoren + Schreib-Entities gebaut. Schalter „Minimal Temperatur aktiv" wieder **entfernt** (Commit a2dda79); „Aus" jetzt im Schieber „Minimal Temperatur setzen" integriert: 0 = Aus (`0x9000`), 10–30 °C = Temperatur, Werte <10 fängt die Set-Logik als „Aus" ab. Raumeinfluss `step:5` (Gerät rastet auf 5).
     - [x] **Min-Temp (Temperatur) + Raumeinfluss gerätebestätigt** (30.07., `logs/hk-parameter-write-test.log`): `C0 01 FA 4E A7 00 A0` = 16 °C, `C0 01 FA 4E A4 00 0A` = 10 % (18 % → Gerät speichert 20 %). Display übernimmt.
     - [x] **Minimal-Temp „Aus" als HA-Write gerätebestätigt** (30.07., `logs/aus-write-test.log`): Schieber 0/5 → `TX 0x680 C0 01 FA 4E A7 90 00`, Echo `D2 .. 90 00`, Display „Aus"; Schieber 10 → `.. 00 64`, Display 10 °C.
-- [ ] **Kühlkurve auslesen** – analog unter Einstellungen→Kühlen
+- [x] **Kühlkurve auslesen** (30.07.) – Menü `Kühlen → Kühlkreis 1` komplett auf Modul `0x601` (wie Heizen): `0x4F08` Ein/Aus, `0x4F04` Raumsolltemp ÷10, `0x4F05` KühlART, `0x4FB9` Steigung Kühlkurve ÷100, `0x4FBE` Starttemp ÷10. Drei Zahlenwerte display-bestätigt. Details im Abschnitt „Kühlkurve / Menü Kühlen".
+  - [ ] KühlART-Enum (`0x4F05`) + Ein/Aus (`0x4F08`) wert-eindeutig bestätigen (Modi durchschalten)
+  - [ ] Grundeinstellung disambiguieren: `0x4F00` vs `0x7A40` (beide =40=4.0) → Leistung kW vs Hysterese Vorlauf K
+  - [ ] `F8`/`F9`-Gerätegrenzen für Kühl-Parameter abgreifen (Edit-Screens gezielt öffnen)
+  - [ ] Read-Entities fürs Kühlen ins Manifest (nach Nutzer-OK)
 - [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – ACHTUNG: `32 00 FA ...` ist NICHT generisch. Es funktioniert nur fürs Betriebsart-Modul (0x480); beim Mischermodul (0x601, Heizkurve) blieb es wirkungslos (siehe Heizkurve-Schreiben oben). Schreib-Adressierung ist modulspezifisch und ≠ Lese-Header → pro Zielmodul per Display-Sniff bestätigen
 - [ ] **Schreib-Service in ESPHome ergänzen** (number/select-Entities) – erst nachdem Set-Format bestätigt ist, mit Min/Max-Grenzen im Code
 
