@@ -1426,11 +1426,10 @@ number:
 
   # =======================================================================
   # Hysterese Vorlauftemp Kuehlen (Index 0x4F00, Manager-Modul 0x180).
-  # Schreib-Header 32 00 - identisch zum am 30.07.2026 GERAETEBESTAETIGTEN
-  # KUEHLEN-Write (0x4F07, gleiches Modul 0x180). Index 0x4F00 selbst noch
-  # nicht schreibend getestet: erster Test mit kleinem Schritt (4,0 -> 4,5)
-  # + TX-Log (32 00 FA 4F 00 ..) UND Display-Kontrolle. Grenzen =
-  # Geraetebereich (F8/F9: 4,0-10,0 K).
+  # SCHREIBEN GERAETEBESTAETIGT (30.07.2026): Schreib-Header 32 00 (wie
+  # KUEHLEN 0x4F07, gleiches Modul 0x180); Test 4,0 -> 4,5 mit TX-Log
+  # (32 00 FA 4F 00 ..), Geraete-Rueckmeldung und Display-Kontrolle bestaetigt.
+  # Grenzen = Geraetebereich (F8/F9: 4,0-10,0 K).
   # =======================================================================
   - platform: template
     name: "Hysterese Vorlauf Kuehlen setzen"

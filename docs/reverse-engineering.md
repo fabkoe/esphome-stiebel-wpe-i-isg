@@ -331,14 +331,15 @@ Beide Werte standen initial auf 4.0. Durch Ändern der Hysterese am Display
 `F8`/`F9`-Frames: `22 00 F8 4F 00 00 28`/`22 00 F9 4F 00 00 64` (Hysterese
 4,0–10,0 K), `22 00 F8 7A 40 00 0A`/`22 00 F9 7A 40 00 28` (Leistung 1,0–4,0 kW).
 **Wichtig:** Diese zwei liegen NICHT auf `0x601` (Kühlkurve), sondern auf eigenen
-Modulen. **Hysterese `0x4F00` = Manager-Modul `0x180`:** Lese-/Schreib-Adressierung
-am 30.07. über den bestätigten `0x4F07`-Write geklärt – Lesen `31 00`, Schreiben
-`32 00` (Index selbst noch nicht schreibend getestet, Entity gebaut). **Leistung
+Modulen. **Hysterese `0x4F00` = Manager-Modul `0x180`:** Lesen `31 00`, Schreiben `32 00`
+– **beides am 30.07.2026 gerätebestätigt** (Schreibtest 4,0 → 4,5 K, TX
+`32 00 FA 4F 00 ..`, Geräte-Rückmeldung + Display verifiziert). **Leistung
 `0x7A40` = Modul `0x480`:** Schreib-Modul noch offen (Lese- ≠ Schreib-Modul, vgl.
 Betriebsart) – bewusst noch keine Schreib-Entity.
 
 **Noch offen:** Leistungs-Schreibmodul (`0x7A40`), exakter Display-Name des
-KÜHLEN-Schalters, Einzel-Schreibtests der `0x601`-Werte + Hysterese.
+KÜHLEN-Schalters, Einzel-Schreibtests der drei `0x601`-Temperaturen
+(`0x4F04`/`0x4FB9`/`0x4FBE`) + KühlART (`0x4F05`).
 **Achtung Schreibformat:** `32 00 FA ...` ist NICHT generisch – es ist der
 **Manager-Modul-Weg** (`0x180`: Betriebsart `0x4F1B`, KÜHLEN `0x4F07`,
 Hysterese `0x4F00`). Beim Mischermodul (`0x601`: Heiz-/Kühlkurve) ist das Set-
@@ -684,9 +685,11 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
     - [ ] Exakten Display-Namen von `0x4F07` bestätigen (Nutzer prüft nach)
   - [x] **Grundeinstellung disambiguiert** (30.07.): `0x4F00` = Hysterese Vorlauftemp (÷10, 4,0–10,0 K, auf 0x180), `0x7A40` = Leistung (÷10, 1,0–4,0 kW, auf 0x480). Per Display-Änderung 4,0→5,0→4,0 K bestätigt, F8/F9-Grenzen mit abgegriffen.
   - [x] **Gerätebereiche + Schrittweiten abgelesen** (30.07.): Raumsoll 20–30 °C/0,1; Starttemp 15–30 °C/0,5; Steigung Kühlkurve 0,1–3,0/0,05; Hysterese 4–10 K/0,1; Leistung 1–4 kW/0,1. Siehe Tabelle im Kühlkurve-Abschnitt.
-  - [ ] Read-Entities fürs Kühlen ins Manifest (nach Nutzer-OK)
-- [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – ACHTUNG: `32 00 FA ...` ist NICHT generisch. Es funktioniert nur fürs Betriebsart-Modul (0x480); beim Mischermodul (0x601, Heizkurve) blieb es wirkungslos (siehe Heizkurve-Schreiben oben). Schreib-Adressierung ist modulspezifisch und ≠ Lese-Header → pro Zielmodul per Display-Sniff bestätigen
-- [ ] **Schreib-Service in ESPHome ergänzen** (number/select-Entities) – erst nachdem Set-Format bestätigt ist, mit Min/Max-Grenzen im Code
+  - [x] **Read-Entities fürs Kühlen ins Manifest** (30.07.) – 5 Sensoren + 3 Text-Sensoren + aktiver 60s-Poll über 0x680. `0x180`-Lesepfad (`31 00`) gerätebestätigt (`logs/kuehlen-verify.log`).
+  - [x] **Set-Telegramm-Format fürs Kühlen bestätigt** (30.07., `logs/kuehlen-verify.log`) – zwei Wege, modulspezifisch: `0x601`-Werte via `C0 01` (belegt an `0x4F08` Kühlkreis Ein/Aus), `0x180`-Manager-Werte via `32 00` (belegt an `0x4F07` KÜHLEN **und** `0x4F00` Hysterese). Jeweils Geräte-Rückmeldung + Display verifiziert.
+  - [x] **Schreib-Entities Kühlen gebaut** – number: Raumsoll/Steigung/Starttemp (`0x601`, `C0 01`), Hysterese (`0x180`, `32 00`); select: Kühlkreis 1 + KühlART (`0x601`), KÜHLEN (`0x180`).
+    - [ ] Einzel-Schreibtests noch offen: `0x4F04`/`0x4FB9`/`0x4FBE` (Temperaturen, `0x601`) und `0x4F05` (KühlART) – Format je bestätigt, aber pro Index noch nicht geschrieben.
+    - [ ] **Leistung `0x7A40` (Modul `0x480`)**: Schreib-Modul unbekannt (Lese- ≠ Schreib-Modul), bewusst noch keine Schreib-Entity. Zuerst Schreibziel per No-Op-Test einkreisen.
 
 ### Prozessdaten / Energie (aus vorheriger Session offen)
 - [x] **Prozessdaten S.1–S.4 komplett bestätigt** (29.07.) – alle auf 0x514, siehe Abschnitt „Prozessdaten"
