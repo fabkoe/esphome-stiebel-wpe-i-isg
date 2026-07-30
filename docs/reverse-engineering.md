@@ -269,7 +269,15 @@ Screens sendet das Modul die Grenzen als `F8`=Min / `F9`=Max desselben Index
 
 #### Kühlkurve
 
-Noch nicht getestet – gleiches Vorgehen wie bei Steigung Heizkurve, im Menü `Einstellungen → Kühlen`.
+Noch nicht getestet – im Menü `Einstellungen → Kühlen`, gleiches Vorgehen wie
+bei Steigung Heizkurve. **Offen:** Indizes, tragendes Modul/CAN-ID (0x601 wie
+Heizen oder eigenes?) und Skalierung. Konkreter Plan + übertragbarer
+Werkzeugkasten stehen im Abschnitt „⏭️ Session-Übergabe (nächste Session:
+Menü „Kühlen")" unter TODOs.
+**Achtung Schreibformat:** `32 00 FA ...` ist NICHT generisch – funktionierte
+nur fürs Betriebsart-Modul (0x480), beim Mischermodul (0x601) war das korrekte
+Set-Nibble 0 (`C0 01`). Schreib-Adressierung pro Zielmodul per Display-Sniff
+bestätigen, nicht raten.
 
 ### Geplantes Vorgehen (Lesen) – bereits erfolgreich angewendet für Betriebsart & Steigung Heizkurve
 
@@ -553,6 +561,40 @@ Erkenntnisse aus dem Log:
 
 **➡️ HEIZKREIS-1-Menü damit abgeschlossen.** Nächste offene Baustellen:
 Kühlkurve (lesen + Schreibformat), Prozessdaten/Energie-Restindizes.
+
+### ⏭️ Session-Übergabe (nächste Session: Menü „Kühlen")
+**Ausgangslage:** HEIZKREIS-1-Menü komplett gelesen **und** schreibend
+geräteverifiziert (Tabelle oben). Firmware auf dem ESP ist aktuell (Commit
+`32bb3ff`, geflasht 30.07.). Als Nächstes das Menü **`Einstellungen → Kühlen`**
+erschließen (Kühlkurve + zugehörige Parameter, analog Heizkreis).
+
+**Was aus dem Heizkreis übertragbar ist (Werkzeugkasten):**
+- **Bewährtes Vorgehen:** ESPHome-Log mitschneiden (`logs/`, UTF-16 → vor dem
+  Auswerten nach UTF-8 konvertieren), am WPM4 einen Kühl-Wert ändern, den
+  Display-Frame im Log dem Wert zuordnen. „Bestätigt" = Log+Display stimmen.
+- **Edit-Screen-Trick:** Beim Öffnen eines Werte-Edit-Screens sendet das Modul
+  Min/Max als `F8`/`F9` desselben Index (`22 00 F8 <idx> ..` / `22 00 F9 ..`).
+  Damit lässt sich der Gerätebereich direkt ablesen, bevor man schreibt.
+- **Adressierung (gelöst):** Schreiben = Nibble 0, Lesen = Nibble 1;
+  `byte0 = ((Ziel>>3)&0xF0)|nibble`, `byte1 = Ziel&0x1F`. Für Modul 0x601:
+  Schreiben `C0 01 FA <idx> <hi> <lo>`, Lesen `C1 01 FA <idx> 00 00`. Eigene
+  Frames IMMER über CAN-ID **0x680** senden, nie 0x100.
+- **Read-back-Muster:** Nach jedem Write eine Leseanfrage (250 ms Delay)
+  nachschieben → Modul antwortet prompt (Cmd `D2`), Wert steht sofort in HA.
+- **Skalierung:** Temperaturen ÷10; Kurven-Steigung ÷100 (Kühlkurve vermutlich
+  ebenso ÷100 – am Gerät prüfen).
+
+**Konkrete erste Schritte fürs Kühlen-Menü:**
+1. Log starten, am WPM4 `Einstellungen → Kühlen` öffnen und die Menüpunkte
+   durchklicken (Edit-Screens öffnen für `F8`/`F9`-Grenzen).
+2. Kandidaten-Indizes + CAN-ID/Modul aus den Frames herausziehen. **Offen:
+   welches Modul die Kühlkurve trägt** (0x601 wie Heizen? eigenes Mischermodul?).
+3. Je Wert einen kleinen Schritt setzen, Display fotografieren, Frame zuordnen.
+4. Erst nach Log+Display-Bestätigung Read-/Write-Entities ins Manifest
+   übernehmen (konservative min/max), dann `esphome config` + Flash + Verify.
+
+⚠️ **Sicherheit:** Schreibtests nur nach explizitem Nutzer-OK und mit vorher
+verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen.
 
 ### Als Nächstes (priorisiert)
 - [ ] **Parser-Fix verifizieren (21.07.)** – neu flashen, prüfen dass keine Sensoren mehr sporadisch auf 0/Unbekannt springen (Anfrage-Frames mit Cmd-Halbbyte 1 werden jetzt gefiltert)
