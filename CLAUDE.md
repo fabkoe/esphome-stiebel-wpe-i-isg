@@ -114,9 +114,10 @@ Heizkreis-1-Menü komplett gelesen + schreibend gerätebestätigt
 Prozessdaten + Energie-/Laufzeitzähler bestätigt und im Manifest.
 Kühlen-Menü: alle 8 Werte lesend bestätigt; schreibend gerätebestätigt
 sind Kühlkreis Ein/Aus (`0x4F08`, `C0 01`), KÜHLEN-Schalter (`0x4F07`)
-und Hysterese (`0x4F00`) – beide `0x180` via `32 00`. Offen: Einzel-
-Schreibtests der drei `0x601`-Temperaturen + KühlART, und Leistung
-`0x7A40` (Schreib-Modul unklar). **Schreib-Systematik:** `0x601`-Modul
+und Hysterese (`0x4F00`) – beide `0x180` via `32 00`. Von den `0x601`-
+Temperaturen ist Raumsoll (`0x4F04`) schreibend gerätebestätigt. Offen:
+Einzel-Schreibtests Steigung Kühlkurve (`0x4FB9`) + Starttemp (`0x4FBE`)
++ KühlART (`0x4F05`), und Leistung `0x7A40` (Schreib-Modul unklar). **Schreib-Systematik:** `0x601`-Modul
 → `C0 01`, `0x180`-Manager → `32 00` (kein generischer Header!).
 PoC mit `ha-stiebel-control`
 abgeschlossen: Framework liest die WPE-I bei 50 kbps korrekt
