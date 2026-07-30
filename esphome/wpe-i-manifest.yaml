@@ -913,15 +913,13 @@ select:
           ESP_LOGI("wpe_i", "Betriebsart gesetzt auf: %s (%d)", x.c_str(), v);
 
 # =========================================================================
-# Steigung Heizkurve (Index 0x4F2B, Mischermodul 0x601) - Lesen bestaetigt.
-# Schreib-Header aus Display-Sniff abgeleitet (30.07.2026,
-# logs/heizkurve-write-sniff.log): das WPM aenderte 0,40<->0,50 mit
-#   100: C0 01 FA 4F 2B <hi> <lo>   (C0 01 = Setzen/Nibble 0 an 0x601)
-# das Mischermodul bestaetigte danach mit Broadcast 22 00 FA 4F 2B <wert>.
-# Wir spiegeln das Payload, senden es aber ueber 0x680 (nie 0x100).
-# NOCH NICHT verifiziert ist, ob die Anlage unseren Schreibbefehl von
-# 0x680 aus akzeptiert - erster echter Schreibtest daher bewusst mit
-# kleinem Schritt, TX-Log (C0 01 ..) UND Display-Kontrolle.
+# Steigung Heizkurve (Index 0x4F2B, Mischermodul 0x601).
+# SCHREIBEN GERAETEBESTAETIGT (30.07.2026): unser Write von 0x680 mit
+#   C0 01 FA 4F 2B <hi> <lo>   (C0 01 = Setzen/Nibble 0 an 0x601)
+# aenderte den Wert 0,50 -> 0,40; am WPM4-Display verifiziert
+# (STEIGUNG HEIZKURVE 0.40), TX-Log C0 01 FA 4F 2B 00 28 vorhanden.
+# Schreib-Header per Display-Sniff hergeleitet (logs/heizkurve-write-*.log).
+# Wir senden das Payload ueber 0x680 (nie 0x100).
 # Geraete-Gueltigkeitsbereich laut Sniff (F8/F9-Frames): 0,20 - 3,00.
 #
 # Grenzen bewusst konservativ gewaehlt (0,1-2,5): laut Betriebsanleitung
