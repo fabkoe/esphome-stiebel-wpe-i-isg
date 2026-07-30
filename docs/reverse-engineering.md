@@ -250,12 +250,22 @@ Beide `/10`-skaliert, gleiche CAN-IDs wie Steigung Heizkurve (0x100/0x601). **Nu
 
 **Schreibversuch am 21.07.2026 – Bewertung revidiert:** Ursprünglich als "abgelehnt" interpretiert (Anlage schien mit `val=0` zu antworten). Nach dem Parser-Fix (siehe Protokoll-Grundlagen) stellte sich heraus: Das `val=0` war eine mitgelesene *Lese-Anfrage* der WPM, keine Ablehnung – unser Parser hat damals Anfragen und Antworten nicht unterschieden. Ob der Schreibversuch tatsächlich abgelehnt wurde oder schlicht ignoriert, ist damit wieder offen. Die tatsächliche Einstellung am Gerät blieb in jedem Fall unverändert (Display-Kontrolle bestätigt). Schreib-Entities bleiben vorerst entfernt; ein erneuter, sauberer Test (mit korrektem Parser) ist jetzt aber deutlich aussichtsreicher.
 
-#### Noch offene Bonus-Kandidaten
+#### Bonus-Kandidaten ✅ zugeordnet (30.07.2026, `logs/zusäzlicheparameter-write-test.log`)
 
-| Index | Wert | Vermutung |
-|---|---|---|
-| `0x4EA7` | -28672 | unklar, ungewöhnliches Format |
-| `0x4EA4` | 0 | unklar |
+Per Display-Sniff im HEIZKREIS-1-Menü eindeutig identifiziert (beide auf
+Modul 0x601, Schreiben mit `C0 01 FA <idx>`):
+
+| Index | Bedeutung | Skalierung | Gerätebereich (F8/F9) | Besonderheit |
+|---|---|---|---|---|
+| `0x4EA7` | **MINIMAL TEMPERATUR (HK)** | ÷10 → °C | 10,0–30,0 °C | „Aus" = Sonderwert `0x9000` (−28672) |
+| `0x4EA4` | **RAUMEINFLUSS (HK)** | ×1 → % | 0–100 % | – |
+
+Display-Frames: `C0 01 FA 4E A7 00 64` (=10,0 °C), `C0 01 FA 4E A7 90 00`
+(=„Aus"), `C0 01 FA 4E A4 00 0A` (=10 %). Modul bestätigt jeweils mit
+`22 00 FA 4E A7/A4 <wert>`. **Nebenerkenntnis:** Beim Öffnen eines Edit-
+Screens sendet das Modul die Grenzen als `F8`=Min / `F9`=Max desselben Index
+(z. B. `22 00 F8 4E A7 00 64` = Min 10,0 °C, `22 00 F9 4E A7 01 2C` = Max
+30,0 °C) – nützlicher genereller RE-Trick zum Ablesen von Wertebereichen.
 
 #### Kühlkurve
 
@@ -526,9 +536,10 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
   - [x] **Steigung Heizkurve SCHREIBEN gerätebestätigt (30.07., `logs/heizkurve-write-*.log`).** Unser Write von 0x680 mit `C0 01 FA 4F 2B <hi> <lo>` änderte 0,50→0,40 – **am WPM4-Display verifiziert** (`STEIGUNG HEIZKURVE 0.40`), TX-Log `C0 01 FA 4F 2B 00 28` vorhanden. Format per Display-Sniff hergeleitet: das WPM setzt mit einem einzelnen Frame `C0 01 FA 4F 2B <wert>` (Nibble **0**=Setzen, Modul-Adressierung `((0x601>>3)&0xF0)|0 = C0`, `0x601&0x1F = 01`). Der frühere `32 00`-Fehlschlag hatte ZWEI Fehler: falsches Modul (0x480) UND falsches Nibble (2 statt 0). Geräte-Gültigkeitsbereich laut `F8`/`F9`-Frames: **0,20–3,00**.
     - [ ] Optional: number-Entity-Untergrenze von 0,1 auf 0,2 anheben (Gerätemin), damit keine unter-Bereich-Werte gesendet werden
   - [ ] **Komfort-/Eco-Temperatur schreiben (0x4EB8/0x4EB9, auch auf 0x601) – Entities gebaut, Geräte-Test offen.** number-Entities „Komforttemperatur Heizkreis setzen" / „Eco-Temperatur Heizkreis setzen" im Manifest, Format `C0 01 FA 4E B8/B9 <hi> <lo>` (°C×10) aus dem bestätigten Heizkurven-Write abgeleitet, Grenzen konservativ (Komfort 10–28, Eco 5–24 °C). **Noch am Gerät zu verifizieren** (kleiner Schritt in HA, TX-Log + Display). Screenshots vom 30.07. (Komfort 20,2→20,0 / Eco 16,3→16,0) bestätigen die Werte; ein Log-Mitschnitt mit den echten WPM-Write-Frames wäre die Extra-Absicherung, ist aber angesichts des identischen Moduls/Nibbles nicht zwingend.
-  - [ ] Schreibformat für Komforttemperatur/Eco-Temperatur (0x4EB8/0x4EB9) herausfinden – erster Versuch mit `32 00 FA ...` schlug fehl (Anlage antwortete val=0), Gerät blieb unverändert. Evtl. anderer Byte0-Header oder andere Zieladressierung nötig, ähnlich wie bei WW-Soll (`41 01` statt `A1 14`) herausgefunden
+  - [x] Schreibformat für Komforttemperatur/Eco-Temperatur (0x4EB8/0x4EB9) geklärt – war Header-Problem (`32 00` falsch), korrekt ist `C0 01` (siehe oben). Entities gebaut.
   - [ ] Niveau/Komfort-Temperatur der Heizkurve auslesen (eigener Index, noch offen)
-  - [ ] Bonus-Kandidaten zuordnen: `0x4EA7`, `0x4EA4` auf 0x601 (Komforttemperatur `0x4EB8` und Eco-Temperatur `0x4EB9` bereits bestätigt)
+  - [x] Bonus-Kandidaten `0x4EA7`/`0x4EA4` auf 0x601 zugeordnet: **MINIMAL TEMPERATUR** (÷10, „Aus"=0x9000) bzw. **RAUMEINFLUSS** (×1 %). Siehe Abschnitt „Bonus-Kandidaten zugeordnet".
+    - [ ] Optional: Read-Sensoren + Schreib-Entities für Minimal-Temp/Raumeinfluss bauen (Minimal-Temp braucht „Aus"-Behandlung für 0x9000)
 - [ ] **Kühlkurve auslesen** – analog unter Einstellungen→Kühlen
 - [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – ACHTUNG: `32 00 FA ...` ist NICHT generisch. Es funktioniert nur fürs Betriebsart-Modul (0x480); beim Mischermodul (0x601, Heizkurve) blieb es wirkungslos (siehe Heizkurve-Schreiben oben). Schreib-Adressierung ist modulspezifisch und ≠ Lese-Header → pro Zielmodul per Display-Sniff bestätigen
 - [ ] **Schreib-Service in ESPHome ergänzen** (number/select-Entities) – erst nachdem Set-Format bestätigt ist, mit Min/Max-Grenzen im Code
