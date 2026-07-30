@@ -524,9 +524,9 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
 
 ## TODOs
 
-### ⏭️ Session-Übergabe (Stand 30.07.2026 mittags, `logs/hk-parameter-write-test.log`)
-**HEIZKREIS-1-Menü als Entities vollständig – vier weitere 0x601-Writes
-gerätebestätigt:**
+### ✅ HEIZKREIS-1-Menü komplett geräteverifiziert (30.07.2026)
+**Alle Schreib-Entities des HEIZKREIS-1-Menüs sind am Gerät bestätigt**
+(Logs: `logs/hk-parameter-write-test.log` + `logs/aus-write-test.log`):
 
 | Write | HA gesetzt | TX (0x680) | Modul-Antwort (0x601) | Status |
 |---|---|---|---|---|
@@ -544,15 +544,15 @@ Erkenntnisse aus dem Log:
 - **Raumeinfluss rastet am Gerät auf 5** (18 % gesendet → 20 % gespeichert,
   `D2 .. 00 14`). number-Entity daher auf `step: 5`.
 - **Minimal-Temp „Aus"**: Schalter entfernt, „Aus" jetzt im Schieber integriert
-  (0 = Aus/`0x9000`, 10–30 = Temperatur). Der **Lese-Pfad** ist bestätigt
-  (Display auf „Aus" → `22 00 FA 4E A7 90 00` → Sensor NaN / Schieber 0). Das
-  „Aus"-Frame im Log kam aber von **id=0x100** (WPM-Display selbst), nicht von
-  unserem 0x680-Write.
+  (0 = Aus/`0x9000`, 10–30 = Temperatur, Werte <10 fängt die Set-Logik als „Aus"
+  ab). **Beide Richtungen als HA-Write gerätebestätigt** (`logs/aus-write-test.log`):
+  Schieber 0 bzw. 5 → `TX id=0x680 raw=C0 01 FA 4E A7 90 00`, Echo
+  `D2 00 FA 4E A7 90 00`, Display „Aus"; Schieber 10 → `.. A7 00 64`, Display 10 °C.
+- **Read-back** an Steigung + allen HK-Writes bestätigt: Übernahme jetzt ~0,75 s
+  statt bis zu 47 s (Steigung 0,60 gesendet → Echo `D2 .. 4F 2B 00 3C` nach 0,75 s).
 
-**➡️ Einziger offener nächster Schritt:** Nach Reflash noch verifizieren:
-(1) **Minimal-Temp „Aus" als HA-Write** – Schieber auf 0 → erwartet `TX id=0x680
-raw=C0 01 FA 4E A7 90 00`, Display muss „Aus" zeigen. (2) Steigung-Read-back +
-Raumeinfluss `step:5` gegenprüfen (unkritisch).
+**➡️ HEIZKREIS-1-Menü damit abgeschlossen.** Nächste offene Baustellen:
+Kühlkurve (lesen + Schreibformat), Prozessdaten/Energie-Restindizes.
 
 ### Als Nächstes (priorisiert)
 - [ ] **Parser-Fix verifizieren (21.07.)** – neu flashen, prüfen dass keine Sensoren mehr sporadisch auf 0/Unbekannt springen (Anfrage-Frames mit Cmd-Halbbyte 1 werden jetzt gefiltert)
@@ -571,7 +571,7 @@ Raumeinfluss `step:5` gegenprüfen (unkritisch).
   - [x] Bonus-Kandidaten `0x4EA7`/`0x4EA4` auf 0x601 zugeordnet: **MINIMAL TEMPERATUR** (÷10, „Aus"=0x9000) bzw. **RAUMEINFLUSS** (×1 %). Siehe Abschnitt „Bonus-Kandidaten zugeordnet".
     - [x] Read-Sensoren + Schreib-Entities gebaut. Schalter „Minimal Temperatur aktiv" wieder **entfernt** (Commit a2dda79); „Aus" jetzt im Schieber „Minimal Temperatur setzen" integriert: 0 = Aus (`0x9000`), 10–30 °C = Temperatur, Werte <10 fängt die Set-Logik als „Aus" ab. Raumeinfluss `step:5` (Gerät rastet auf 5).
     - [x] **Min-Temp (Temperatur) + Raumeinfluss gerätebestätigt** (30.07., `logs/hk-parameter-write-test.log`): `C0 01 FA 4E A7 00 A0` = 16 °C, `C0 01 FA 4E A4 00 0A` = 10 % (18 % → Gerät speichert 20 %). Display übernimmt.
-    - [ ] **Minimal-Temp „Aus" als HA-Write noch offen**: nur der Lese-Pfad ist bestätigt (Display-Aus → `0x9000` → Sensor NaN/Schieber 0). Der HA-Schreibweg (Schieber 0 → `TX 0x680 C0 01 FA 4E A7 90 00`) wurde noch nicht getestet.
+    - [x] **Minimal-Temp „Aus" als HA-Write gerätebestätigt** (30.07., `logs/aus-write-test.log`): Schieber 0/5 → `TX 0x680 C0 01 FA 4E A7 90 00`, Echo `D2 .. 90 00`, Display „Aus"; Schieber 10 → `.. 00 64`, Display 10 °C.
 - [ ] **Kühlkurve auslesen** – analog unter Einstellungen→Kühlen
 - [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – ACHTUNG: `32 00 FA ...` ist NICHT generisch. Es funktioniert nur fürs Betriebsart-Modul (0x480); beim Mischermodul (0x601, Heizkurve) blieb es wirkungslos (siehe Heizkurve-Schreiben oben). Schreib-Adressierung ist modulspezifisch und ≠ Lese-Header → pro Zielmodul per Display-Sniff bestätigen
 - [ ] **Schreib-Service in ESPHome ergänzen** (number/select-Entities) – erst nachdem Set-Format bestätigt ist, mit Min/Max-Grenzen im Code
