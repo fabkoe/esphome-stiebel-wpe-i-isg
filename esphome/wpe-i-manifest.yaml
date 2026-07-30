@@ -223,7 +223,8 @@ sensor:
     accuracy_decimals: 1
 
   # Minimal-Temperatur HK (0x4EA7): "Aus" (0x9000) wird als NaN/unavailable
-  # veroeffentlicht; der Aktiv-Zustand steckt im Schalter "Minimal Temperatur aktiv".
+  # veroeffentlicht. Setzen nur ueber den Schieber (10-30 degC); "Aus" ist
+  # aus HA nicht setzbar (Sonderwert 0x9000), nur am WPM-Display.
   - platform: template
     name: "Minimal Temperatur Heizkreis"
     id: min_temp_hk
@@ -595,11 +596,9 @@ canbus:
               if (idx == 0x4EA7 && (can_id == 0x100 || can_id == 0x601)) {
                 if (val == -28672) {
                   id(min_temp_hk).publish_state(NAN);
-                  id(min_temp_hk_aktiv).publish_state(false);
                 } else {
                   id(min_temp_hk).publish_state(val / 10.0f);
                   id(min_temp_hk_set).publish_state(val / 10.0f);
-                  id(min_temp_hk_aktiv).publish_state(true);
                 }
               }
               // --- RAUMEINFLUSS HK: Index 0x4EA4 auf 0x100/0x601 (direkt %) ---
@@ -1090,38 +1089,4 @@ number:
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Raumeinfluss gesetzt auf: %.0f%% (roh=%d)", x, v);
-
-# =========================================================================
-# Schalter Minimal-Temperatur aktiv / Aus (Index 0x4EA7, Modul 0x601).
-# AUS = eigener Sonderwert 0x9000, den eine Zahl-Entity nicht abbilden kann.
-#   - Ausschalten -> C0 01 FA 4E A7 90 00 (Frostschutz/Minimal-Temp aus)
-#   - Einschalten -> letzte gueltige Temperatur aus "... setzen" senden
-#     (Fallback 10,0 degC, falls unbekannt/ausserhalb 10-30)
-# Zustand wird vom Parser gespiegelt (an=echte Temperatur, aus=0x9000).
-# =========================================================================
-switch:
-  - platform: template
-    name: "Minimal Temperatur aktiv"
-    id: min_temp_hk_aktiv
-    optimistic: false
-    turn_off_action:
-      - lambda: |-
-          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4E, 0xA7, 0x90, 0x00};
-          id(my_canbus).send_data(0x680, false, w);
-          ESP_LOGI("wpe_i", "TX id=0x680 raw=C0 01 FA 4E A7 90 00");
-          ESP_LOGI("wpe_i", "Minimal Temperatur auf AUS gesetzt (0x9000)");
-    turn_on_action:
-      - lambda: |-
-          float t = id(min_temp_hk_set).state;
-          if (isnan(t) || t < 10.0f || t > 30.0f) t = 10.0f;
-          int16_t v = (int16_t) round(t * 10.0f);
-          uint8_t val_hi = (v >> 8) & 0xFF;
-          uint8_t val_lo = v & 0xFF;
-          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4E, 0xA7, val_hi, val_lo};
-          id(my_canbus).send_data(0x680, false, w);
-          char txbuf[24];
-          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
-                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
-          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Minimal Temperatur aktiviert auf: %.1f (roh=%d)", t, v);
 
