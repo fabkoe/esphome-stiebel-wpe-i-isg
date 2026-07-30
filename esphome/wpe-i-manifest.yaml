@@ -222,9 +222,9 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
 
-  # Minimal-Temperatur HK (0x4EA7): "Aus" (0x9000) wird als NaN/unavailable
-  # veroeffentlicht. Setzen nur ueber den Schieber (10-30 degC); "Aus" ist
-  # aus HA nicht setzbar (Sonderwert 0x9000), nur am WPM-Display.
+  # Minimal-Temperatur HK (0x4EA7): "Aus" (0x9000) wird hier als NaN/unavailable
+  # veroeffentlicht. Gesetzt wird ueber den Schieber "... setzen" (0 = Aus,
+  # 10-30 degC = Temperatur, siehe dort).
   - platform: template
     name: "Minimal Temperatur Heizkreis"
     id: min_temp_hk
@@ -593,9 +593,11 @@ canbus:
 
               // --- MINIMAL TEMPERATUR HK: Index 0x4EA7 auf 0x100/0x601 ---
               // "Aus" wird als eigener Sonderwert 0x9000 (-28672) uebertragen.
+              // Lesesensor -> NaN/unavailable, Schieber -> 0 (= "Aus"-Position).
               if (idx == 0x4EA7 && (can_id == 0x100 || can_id == 0x601)) {
                 if (val == -28672) {
                   id(min_temp_hk).publish_state(NAN);
+                  id(min_temp_hk_set).publish_state(0);
                 } else {
                   id(min_temp_hk).publish_state(val / 10.0f);
                   id(min_temp_hk_set).publish_state(val / 10.0f);
@@ -1020,6 +1022,12 @@ number:
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Komforttemperatur gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          // Sofortiger Read-back statt bis zum 60s-Poll zu warten: Wert
+          // direkt nach dem Write anfordern (Modul 0x601 antwortet prompt).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xB8, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
 
   - platform: template
     name: "Eco-Temperatur Heizkreis setzen"
@@ -1042,31 +1050,51 @@ number:
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Eco-Temperatur gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          // Sofortiger Read-back (siehe Komforttemperatur).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xB9, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
 
-  # Minimal-Temperatur HK (0x4EA7): Zahlwert setzt eine Temperatur (10-30 degC).
-  # "Aus" (0x9000) wird ueber den Schalter "Minimal Temperatur aktiv" gesetzt,
-  # nicht ueber diese Zahl. Geraetebereich laut F8/F9-Sniff: 10,0-30,0 degC.
+  # Minimal-Temperatur HK (0x4EA7). Geraet kennt am Display nur "Aus" oder
+  # 10-30 degC (nichts dazwischen; F8/F9-Sniff: Min 10,0 / Max 30,0). Schieber
+  # bildet das ab: 0 = "Aus" (Sonderwert 0x9000), ab 10 = echte Temperatur.
+  # Alles unter 10 faengt die Set-Logik als "Aus" ab, damit nie eine
+  # ungueltige 0,1-9,9 degC gesendet wird.
   - platform: template
     name: "Minimal Temperatur Heizkreis setzen"
     id: min_temp_hk_set
     optimistic: false
-    min_value: 10.0
+    min_value: 0
     max_value: 30.0
-    step: 0.1
+    step: 1
     unit_of_measurement: "°C"
     device_class: temperature
     set_action:
       - lambda: |-
-          int16_t v = (int16_t) round(x * 10.0f);
-          uint8_t val_hi = (v >> 8) & 0xFF;
-          uint8_t val_lo = v & 0xFF;
+          uint16_t raw;
+          const char* mode;
+          if (x < 10.0f) {            // Schieber < 10 = "Aus" (0x9000)
+            raw = 0x9000;
+            mode = "Aus";
+          } else {
+            raw = (uint16_t)((int16_t) round(x * 10.0f));
+            mode = "Temp";
+          }
+          uint8_t val_hi = (raw >> 8) & 0xFF;
+          uint8_t val_lo = raw & 0xFF;
           std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4E, 0xA7, val_hi, val_lo};
           id(my_canbus).send_data(0x680, false, w);
           char txbuf[24];
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Minimal Temperatur gesetzt auf: %.1f (roh=%d)", x, v);
+          ESP_LOGI("wpe_i", "Minimal Temperatur gesetzt (%s) auf: %.1f", mode, x);
+      - delay: 250ms
+      - lambda: |-
+          // Sofortiger Read-back (siehe Komforttemperatur).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xA7, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
 
   # Raumeinfluss HK (0x4EA4): direkt in Prozent, Geraetebereich 0-100 %.
   - platform: template
@@ -1089,4 +1117,9 @@ number:
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Raumeinfluss gesetzt auf: %.0f%% (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          // Sofortiger Read-back (siehe Komforttemperatur).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xA4, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
 
