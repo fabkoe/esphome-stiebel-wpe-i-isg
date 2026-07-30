@@ -695,6 +695,7 @@ canbus:
               // 0x7A40 auf 0x480 (30.07.2026 bestaetigt).
               if (idx == 0x4F07 && (can_id == 0x100 || can_id == 0x180)) {
                 id(kuehlen_status).publish_state(val == 1 ? "Ein" : "Aus");
+                id(kuehlen_select).publish_state(val == 1 ? "Ein" : "Aus");
               }
               if (idx == 0x4F00 && (can_id == 0x100 || can_id == 0x180)) {
                 id(hysterese_vorlauf_kuehlen).publish_state(val / 10.0f);
@@ -1124,6 +1125,39 @@ select:
       - delay: 250ms
       - lambda: |-
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x05, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  # =======================================================================
+  # Uebergeordneter Schalter KUEHLEN (Index 0x4F07). Anders als Kuehlkreis 1
+  # (0x601) ist dies ein Manager-/System-Wert (0x4Fxx) wie die Betriebsart
+  # (0x4F1B). Schreib-Header daher als 32 00 (Modul 0x180) angesetzt -
+  # identisch zum GERAETEVERIFIZIERTEN Betriebsart-Write. Fuer 0x4F07 selbst
+  # aber NOCH NICHT verifiziert: erster Test = aktuellen Wert zurueckschreiben
+  # (Ein->Ein / Aus->Aus, keine echte Aenderung) und im Log pruefen, ob die
+  # WPM einen frischen 0x4F07-Broadcast sendet = Telegramm akzeptiert. Danach
+  # echter Umschalt-Test mit Display-Kontrolle. Read-back-Header 31 00 (0x180)
+  # ist ebenfalls noch abgeleitet (vgl. Poll-Kommentar).
+  # =======================================================================
+  - platform: template
+    name: "Kuehlen setzen"
+    id: kuehlen_select
+    optimistic: false
+    options:
+      - "Aus"
+      - "Ein"
+    set_action:
+      - lambda: |-
+          uint8_t v = (x == "Ein") ? 1 : 0;
+          std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x07, 0x00, v};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Kuehlen gesetzt auf: %s (%d)", x.c_str(), v);
+      - delay: 250ms
+      - lambda: |-
+          std::vector<uint8_t> rb = {0x31, 0x00, 0xFA, 0x4F, 0x07, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
 # =========================================================================
