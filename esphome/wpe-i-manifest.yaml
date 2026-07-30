@@ -665,15 +665,19 @@ canbus:
               // logs/kuehlart-enum.log). Nur Lesen.
               if (idx == 0x4F04 && (can_id == 0x100 || can_id == 0x601)) {
                 id(raumsolltemp_kuehlen).publish_state(val / 10.0f);
+                id(raumsolltemp_kuehlen_set).publish_state(val / 10.0f);
               }
               if (idx == 0x4FB9 && (can_id == 0x100 || can_id == 0x601)) {
                 id(steigung_kuehlkurve).publish_state(val / 100.0f);
+                id(steigung_kuehlkurve_set).publish_state(val / 100.0f);
               }
               if (idx == 0x4FBE && (can_id == 0x100 || can_id == 0x601)) {
                 id(starttemp_kuehlen).publish_state(val / 10.0f);
+                id(starttemp_kuehlen_set).publish_state(val / 10.0f);
               }
               if (idx == 0x4F08 && (can_id == 0x100 || can_id == 0x601)) {
                 id(kuehlkreis_status).publish_state(val == 1 ? "Ein" : "Aus");
+                id(kuehlkreis_select).publish_state(val == 1 ? "Ein" : "Aus");
               }
               if (idx == 0x4F05 && (can_id == 0x100 || can_id == 0x601)) {
                 std::string art;
@@ -683,6 +687,7 @@ canbus:
                   default: art = "Unbekannt (" + std::to_string(val) + ")"; break;
                 }
                 id(kuehlart_text).publish_state(art);
+                if (val == 0 || val == 1) id(kuehlart_select).publish_state(art);
               }
 
               // --- KUEHLEN: uebergeordneter Schalter + Grundeinstellung ---
@@ -1070,6 +1075,57 @@ select:
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Betriebsart gesetzt auf: %s (%d)", x.c_str(), v);
 
+  # =======================================================================
+  # Kuehlkreis 1 Ein/Aus (0x4F08) + KuehlART (0x4F05), Mischermodul 0x601.
+  # Schreib-Header C0 01 FA <idx> 00 <v> aus dem bestaetigten Heizkurven-
+  # Write abgeleitet (gleiches Modul). NOCH NICHT geraeteverifiziert -
+  # erster Schreibtest mit TX-Log (C0 01 ..) UND Display-Kontrolle.
+  # Enum-Werte 30.07.2026 lesend bestaetigt (1=Ein/Flaeche, 0=Aus/Geblaese).
+  # =======================================================================
+  - platform: template
+    name: "Kuehlkreis 1 setzen"
+    id: kuehlkreis_select
+    optimistic: false
+    options:
+      - "Aus"
+      - "Ein"
+    set_action:
+      - lambda: |-
+          uint8_t v = (x == "Ein") ? 1 : 0;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x08, 0x00, v};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Kuehlkreis 1 gesetzt auf: %s (%d)", x.c_str(), v);
+      - delay: 250ms
+      - lambda: |-
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x08, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  - platform: template
+    name: "Kuehlart setzen"
+    id: kuehlart_select
+    optimistic: false
+    options:
+      - "Geblaesekuehlung"
+      - "Flaechenkuehlung"
+    set_action:
+      - lambda: |-
+          uint8_t v = (x == "Flaechenkuehlung") ? 1 : 0;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x05, 0x00, v};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Kuehlart gesetzt auf: %s (%d)", x.c_str(), v);
+      - delay: 250ms
+      - lambda: |-
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x05, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
 # =========================================================================
 # Steigung Heizkurve (Index 0x4F2B, Mischermodul 0x601).
 # SCHREIBEN GERAETEBESTAETIGT (30.07.2026): unser Write von 0x680 mit
@@ -1245,5 +1301,92 @@ number:
       - lambda: |-
           // Sofortiger Read-back (siehe Komforttemperatur).
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xA4, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  # =======================================================================
+  # Kuehlen-Zahlenwerte (Mischermodul 0x601): Raumsolltemperatur (0x4F04),
+  # Steigung Kuehlkurve (0x4FB9), Starttemperatur (0x4FBE).
+  # Schreib-Format aus dem bestaetigten Heizkurven-Write abgeleitet
+  # (C0 01 FA <idx> <hi> <lo>, ueber 0x680). NOCH NICHT geraeteverifiziert -
+  # erster Schreibtest je Wert mit kleinem Schritt, TX-Log UND Display-
+  # Kontrolle. Grenzen = am Display abgelesene Geraetebereiche (30.07.2026).
+  # Achtung Kuehlkurve: zu steile Kurve -> tiefe Vorlauftemp -> Taupunkt-/
+  # Kondensationsrisiko am Estrich; im Zweifel flach lassen.
+  # =======================================================================
+  - platform: template
+    name: "Raumsolltemperatur Kuehlen setzen"
+    id: raumsolltemp_kuehlen_set
+    optimistic: false
+    min_value: 20.0
+    max_value: 30.0
+    step: 0.1
+    unit_of_measurement: "°C"
+    device_class: temperature
+    set_action:
+      - lambda: |-
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x04, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Raumsolltemperatur Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x04, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  - platform: template
+    name: "Steigung Kuehlkurve setzen"
+    id: steigung_kuehlkurve_set
+    optimistic: false
+    min_value: 0.1
+    max_value: 3.0
+    step: 0.05
+    unit_of_measurement: ""
+    set_action:
+      - lambda: |-
+          int16_t v = (int16_t) round(x * 100.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0xB9, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Steigung Kuehlkurve gesetzt auf: %.2f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0xB9, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  - platform: template
+    name: "Starttemperatur Kuehlen setzen"
+    id: starttemp_kuehlen_set
+    optimistic: false
+    min_value: 15.0
+    max_value: 30.0
+    step: 0.5
+    unit_of_measurement: "°C"
+    device_class: temperature
+    set_action:
+      - lambda: |-
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0xBE, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Starttemperatur Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0xBE, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
