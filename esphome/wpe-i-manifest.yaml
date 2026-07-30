@@ -990,6 +990,12 @@ number:
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
           ESP_LOGI("wpe_i", "Steigung Heizkurve gesetzt auf: %.2f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          // Sofortiger Read-back (siehe Komforttemperatur): sonst dauert die
+          // Wertuebernahme bis zum naechsten 60s-Poll (am Geraet beobachtet).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x2B, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
 
   # =======================================================================
   # Komforttemperatur / Eco-Temperatur Heizkreis (Index 0x4EB8 / 0x4EB9,
@@ -1097,13 +1103,15 @@ number:
           id(my_canbus).send_data(0x680, false, rb);
 
   # Raumeinfluss HK (0x4EA4): direkt in Prozent, Geraetebereich 0-100 %.
+  # Das Geraet rastet am Display auf 5er-Schritte (18% gesendet -> 20%
+  # gespeichert, im Log geraeteverifiziert) -> step 5.
   - platform: template
     name: "Raumeinfluss Heizkreis setzen"
     id: raumeinfluss_hk_set
     optimistic: false
     min_value: 0
     max_value: 100
-    step: 1
+    step: 5
     unit_of_measurement: "%"
     set_action:
       - lambda: |-

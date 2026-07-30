@@ -258,7 +258,7 @@ Modul 0x601, Schreiben mit `C0 01 FA <idx>`):
 | Index | Bedeutung | Skalierung | Gerätebereich (F8/F9) | Besonderheit |
 |---|---|---|---|---|
 | `0x4EA7` | **MINIMAL TEMPERATUR (HK)** | ÷10 → °C | 10,0–30,0 °C | „Aus" = Sonderwert `0x9000` (−28672) |
-| `0x4EA4` | **RAUMEINFLUSS (HK)** | ×1 → % | 0–100 % | – |
+| `0x4EA4` | **RAUMEINFLUSS (HK)** | ×1 → % | 0–100 % | Gerät rastet auf 5er-Schritte |
 
 Display-Frames: `C0 01 FA 4E A7 00 64` (=10,0 °C), `C0 01 FA 4E A7 90 00`
 (=„Aus"), `C0 01 FA 4E A4 00 0A` (=10 %). Modul bestätigt jeweils mit
@@ -524,20 +524,35 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
 
 ## TODOs
 
-### ⏭️ Session-Übergabe (Stand 30.07.2026, Commit cc6bb54)
-**Erledigt heute:** Adressierungsformel komplett entschlüsselt (Schreiben =
-Nibble 0, `byte0=((Ziel>>3)&0xF0)|nibble`, `byte1=Ziel&0x1F`). Heizkurve
-schreiben **gerätebestätigt**. Vier weitere 0x601-Writes als Entities gebaut,
-aber **noch NICHT am Gerät verifiziert**: Komfort-Temp (0x4EB8), Eco-Temp
-(0x4EB9), Minimal-Temp (0x4EA7, „Aus"=0x9000), Raumeinfluss (0x4EA4) + Schalter
-„Minimal Temperatur aktiv".
+### ⏭️ Session-Übergabe (Stand 30.07.2026 mittags, `logs/hk-parameter-write-test.log`)
+**HEIZKREIS-1-Menü als Entities vollständig – vier weitere 0x601-Writes
+gerätebestätigt:**
 
-**➡️ Einziger offener nächster Schritt:** frisch geflashte Firmware am Gerät
-verifizieren – pro Write in HA kleinen Schritt setzen, im Log `TX id=0x680
-raw=C0 01 FA 4E ..` + kurz darauf Modul-Meldung `id=0x601 raw=22 00 FA 4E ..`
-mit gleichem Wert suchen, am WPM4-Display (HEIZKREIS 1) gegenprüfen. Reihenfolge:
-Raumeinfluss → Komfort/Eco → Minimal-Temp → Aus-Schalter (Display muss „Aus"
-zeigen) → wieder an. Danach die vier als bestätigt markieren.
+| Write | HA gesetzt | TX (0x680) | Modul-Antwort (0x601) | Status |
+|---|---|---|---|---|
+| Komforttemperatur `0x4EB8` | 25,0 °C | `C0 01 FA 4E B8 00 FA` | `D2 00 FA 4E B8 00 FA` | ✅ bestätigt |
+| Eco-Temperatur `0x4EB9` | 20,1 °C | `C0 01 FA 4E B9 00 C9` | `D2 00 FA 4E B9 00 C9` | ✅ bestätigt |
+| Minimal-Temp `0x4EA7` (Temp) | 10 / 16 °C | `.. A7 00 64` / `00 A0` | Poll `22 00 FA 4E A7 00 A0` | ✅ bestätigt |
+| Raumeinfluss `0x4EA4` | 10 / 18 % | `.. A4 00 0A` / `00 12` | `D2 .. 00 0A` / `00 14` (=20!) | ✅ bestätigt |
+
+Erkenntnisse aus dem Log:
+- **Read-back nach Write** (Leseanfrage direkt hinterher) eingebaut; Modul
+  antwortet ~0,8 s später mit Cmd **`D2`** (nicht `22`; `22` sind die
+  60-s-Poll-Antworten – Parser wertet beide gleich). Steigung Heizkurve hatte
+  noch keinen Read-back → Übernahme dauerte ~47 s bis zum Poll; jetzt ebenfalls
+  Read-back eingebaut.
+- **Raumeinfluss rastet am Gerät auf 5** (18 % gesendet → 20 % gespeichert,
+  `D2 .. 00 14`). number-Entity daher auf `step: 5`.
+- **Minimal-Temp „Aus"**: Schalter entfernt, „Aus" jetzt im Schieber integriert
+  (0 = Aus/`0x9000`, 10–30 = Temperatur). Der **Lese-Pfad** ist bestätigt
+  (Display auf „Aus" → `22 00 FA 4E A7 90 00` → Sensor NaN / Schieber 0). Das
+  „Aus"-Frame im Log kam aber von **id=0x100** (WPM-Display selbst), nicht von
+  unserem 0x680-Write.
+
+**➡️ Einziger offener nächster Schritt:** Nach Reflash noch verifizieren:
+(1) **Minimal-Temp „Aus" als HA-Write** – Schieber auf 0 → erwartet `TX id=0x680
+raw=C0 01 FA 4E A7 90 00`, Display muss „Aus" zeigen. (2) Steigung-Read-back +
+Raumeinfluss `step:5` gegenprüfen (unkritisch).
 
 ### Als Nächstes (priorisiert)
 - [ ] **Parser-Fix verifizieren (21.07.)** – neu flashen, prüfen dass keine Sensoren mehr sporadisch auf 0/Unbekannt springen (Anfrage-Frames mit Cmd-Halbbyte 1 werden jetzt gefiltert)
@@ -550,12 +565,13 @@ zeigen) → wieder an. Danach die vier als bestätigt markieren.
 - [x] **Steigung Heizkurve auslesen** – Index `0x4F2B` bestätigt (0,40→0,45→0,40 verifiziert). Lese-Header `C1 01` (= `generate_read_id(0x601)`) am 29.07. **gerätebestätigt** (war zuvor nur abgeleitet).
   - [x] **Steigung Heizkurve SCHREIBEN gerätebestätigt (30.07., `logs/heizkurve-write-*.log`).** Unser Write von 0x680 mit `C0 01 FA 4F 2B <hi> <lo>` änderte 0,50→0,40 – **am WPM4-Display verifiziert** (`STEIGUNG HEIZKURVE 0.40`), TX-Log `C0 01 FA 4F 2B 00 28` vorhanden. Format per Display-Sniff hergeleitet: das WPM setzt mit einem einzelnen Frame `C0 01 FA 4F 2B <wert>` (Nibble **0**=Setzen, Modul-Adressierung `((0x601>>3)&0xF0)|0 = C0`, `0x601&0x1F = 01`). Der frühere `32 00`-Fehlschlag hatte ZWEI Fehler: falsches Modul (0x480) UND falsches Nibble (2 statt 0). Geräte-Gültigkeitsbereich laut `F8`/`F9`-Frames: **0,20–3,00**.
     - [ ] Optional: number-Entity-Untergrenze von 0,1 auf 0,2 anheben (Gerätemin), damit keine unter-Bereich-Werte gesendet werden
-  - [ ] **Komfort-/Eco-Temperatur schreiben (0x4EB8/0x4EB9, auch auf 0x601) – Entities gebaut, Geräte-Test offen.** number-Entities „Komforttemperatur Heizkreis setzen" / „Eco-Temperatur Heizkreis setzen" im Manifest, Format `C0 01 FA 4E B8/B9 <hi> <lo>` (°C×10) aus dem bestätigten Heizkurven-Write abgeleitet, Grenzen konservativ (Komfort 10–28, Eco 5–24 °C). **Noch am Gerät zu verifizieren** (kleiner Schritt in HA, TX-Log + Display). Screenshots vom 30.07. (Komfort 20,2→20,0 / Eco 16,3→16,0) bestätigen die Werte; ein Log-Mitschnitt mit den echten WPM-Write-Frames wäre die Extra-Absicherung, ist aber angesichts des identischen Moduls/Nibbles nicht zwingend.
+  - [x] **Komfort-/Eco-Temperatur schreiben (0x4EB8/0x4EB9) – gerätebestätigt (30.07., `logs/hk-parameter-write-test.log`).** `C0 01 FA 4E B8 00 FA` (25,0 °C) bzw. `C0 01 FA 4E B9 00 C9` (20,1 °C) über 0x680, Modul antwortet `D2 00 FA 4E B8/B9 <wert>`, Display übernimmt. Format (°C×10) aus dem Heizkurven-Write abgeleitet, Grenzen konservativ (Komfort 10–28, Eco 5–24 °C).
   - [x] Schreibformat für Komforttemperatur/Eco-Temperatur (0x4EB8/0x4EB9) geklärt – war Header-Problem (`32 00` falsch), korrekt ist `C0 01` (siehe oben). Entities gebaut.
   - [ ] Niveau/Komfort-Temperatur der Heizkurve auslesen (eigener Index, noch offen)
   - [x] Bonus-Kandidaten `0x4EA7`/`0x4EA4` auf 0x601 zugeordnet: **MINIMAL TEMPERATUR** (÷10, „Aus"=0x9000) bzw. **RAUMEINFLUSS** (×1 %). Siehe Abschnitt „Bonus-Kandidaten zugeordnet".
-    - [x] Read-Sensoren + Schreib-Entities gebaut: Sensoren „Minimal Temperatur/Raumeinfluss Heizkreis", number „… setzen" (Min-Temp 10–30 °C, Raumeinfluss 0–100 %), Poll erweitert. „Aus": Sensor→NaN, plus Schalter „Minimal Temperatur aktiv" (aus=0x9000, an=letzte Temp/Fallback 10 °C).
-    - [ ] Alle vier neuen 0x601-Writes (Komfort/Eco/Min-Temp/Raumeinfluss) noch am Gerät verifizieren (TX-Log + Display)
+    - [x] Read-Sensoren + Schreib-Entities gebaut. Schalter „Minimal Temperatur aktiv" wieder **entfernt** (Commit a2dda79); „Aus" jetzt im Schieber „Minimal Temperatur setzen" integriert: 0 = Aus (`0x9000`), 10–30 °C = Temperatur, Werte <10 fängt die Set-Logik als „Aus" ab. Raumeinfluss `step:5` (Gerät rastet auf 5).
+    - [x] **Min-Temp (Temperatur) + Raumeinfluss gerätebestätigt** (30.07., `logs/hk-parameter-write-test.log`): `C0 01 FA 4E A7 00 A0` = 16 °C, `C0 01 FA 4E A4 00 0A` = 10 % (18 % → Gerät speichert 20 %). Display übernimmt.
+    - [ ] **Minimal-Temp „Aus" als HA-Write noch offen**: nur der Lese-Pfad ist bestätigt (Display-Aus → `0x9000` → Sensor NaN/Schieber 0). Der HA-Schreibweg (Schieber 0 → `TX 0x680 C0 01 FA 4E A7 90 00`) wurde noch nicht getestet.
 - [ ] **Kühlkurve auslesen** – analog unter Einstellungen→Kühlen
 - [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – ACHTUNG: `32 00 FA ...` ist NICHT generisch. Es funktioniert nur fürs Betriebsart-Modul (0x480); beim Mischermodul (0x601, Heizkurve) blieb es wirkungslos (siehe Heizkurve-Schreiben oben). Schreib-Adressierung ist modulspezifisch und ≠ Lese-Header → pro Zielmodul per Display-Sniff bestätigen
 - [ ] **Schreib-Service in ESPHome ergänzen** (number/select-Entities) – erst nachdem Set-Format bestätigt ist, mit Min/Max-Grenzen im Code
