@@ -1082,7 +1082,8 @@ select:
   # Schreib-Header C0 01 FA <idx> 00 <v>. 0x4F08 SCHREIBEN GERAETEBESTAETIGT
   # (30.07.2026, logs/kuehlen-verify.log): TX C0 01 FA 4F 08 00 00/01 -> Geraet
   # meldete ~0,8 s spaeter den neuen Wert, auch am Display verifiziert.
-  # KuehlART 0x4F05 gleiches Modul/Format, noch nicht einzeln geschrieben-getestet.
+  # KuehlART 0x4F05 gleiches Modul/Format, am 30.07.2026 schreibend AM DISPLAY
+  # VERIFIZIERT (Nutzer, Fläche<->Geblaese + zurueck) - ohne TX-Log-Mitschnitt.
   # Enum-Werte 30.07.2026 lesend bestaetigt (1=Ein/Flaeche, 0=Aus/Geblaese).
   # =======================================================================
   - platform: template
@@ -1345,9 +1346,12 @@ number:
   # Raumsolltemperatur 0x4F04 SCHREIBEN GERAETEBESTAETIGT (30.07.2026,
   # logs\raumsoll-write.log): TX C0 01 FA 4F 04 00 C9 (20,1) -> Geraet meldete
   # ~0,8 s spaeter val=201 (Broadcast 80 01 + Antwort D2 00), am Display 20,1,
-  # danach sauber auf 20,0 zurueck. 0x4FB9/0x4FBE NOCH NICHT geraeteverifiziert -
-  # erster Schreibtest je Wert mit kleinem Schritt, TX-Log UND Display-
-  # Kontrolle. Grenzen = am Display abgelesene Geraetebereiche (30.07.2026).
+  # danach sauber auf 20,0 zurueck.
+  # 0x4FB9/0x4FBE am 30.07.2026 schreibend AM DISPLAY VERIFIZIERT (Nutzer, je
+  # gesetzt + zurueckgestellt) - ohne TX-Log-Mitschnitt; Schreibpfad = diese
+  # Entities (C0 01, wie log-belegtes 0x4F04). Steigung Kuehlkurve wg. Taupunkt-/
+  # Estrich-Risiko weiter nur mit kleinem Schritt aendern.
+  # Grenzen = am Display abgelesene Geraetebereiche (30.07.2026).
   # Achtung Kuehlkurve: zu steile Kurve -> tiefe Vorlauftemp -> Taupunkt-/
   # Kondensationsrisiko am Estrich; im Zweifel flach lassen.
   # =======================================================================
