@@ -293,13 +293,21 @@ Positions-Reihenfolge zugeordnet, wert-eindeutig noch offen.
 `C0 01 FA <idx> <hi> <lo>` (Lesen `C1 01 FA <idx> 00 00`). **Noch nicht per
 Display-Sniff/Schreibtest bestätigt** – vor jedem Write Format bestätigen.
 
-**Menü `Kühlen → Grundeinstellung` (Kandidaten, noch nicht disambiguiert):**
-Beide angezeigten Werte waren 4.0 → Roh 40 (÷10). Zwei passende Frames @ 12:47:56:
-`0x4F00` = 40 (Antwort via `0x180`, `22 00 FA 4F 00 00 28`) und `0x7A40` = 40
-(Antwort via `0x480`, `22 00 FA 7A 40 00 28`). Das sind **Leistung 4.0 kW** und
-**Hysterese Vorlauftemp 4.0 K**, aber weil beide 4.0 sind, ist die Zuordnung
-Index↔Bedeutung offen. **Zum Trennen:** einen Wert am Display um einen Schritt
-ändern und beobachten, welcher Index wandert.
+**Menü `Kühlen → Grundeinstellung` (30.07., disambiguiert, `logs/kuehlen-hysterese.log`):**
+Beide Werte standen initial auf 4.0. Durch Ändern der Hysterese am Display
+(4,0 → 5,0 → 4,0 K) aufgelöst:
+
+| Index | Bedeutung | Skalierung | Bereich (`F8`/`F9`) | Quell-CAN-ID | Status |
+|---|---|---|---|---|---|
+| `0x4F00` | **Hysterese Vorlauftemp Kühlen** | ÷10 → K | 4,0–10,0 K | `0x180` (Grenzen), `0x100` (Änderung) | **bestätigt** |
+| `0x7A40` | **Leistung Kühlen** | ÷10 → kW | 1,0–4,0 kW | `0x480` | **bestätigt** |
+
+`0x4F00` wanderte 40 → 50 → 40 (= geänderter Wert), `0x7A40` blieb konstant 40.
+`F8`/`F9`-Frames: `22 00 F8 4F 00 00 28`/`22 00 F9 4F 00 00 64` (Hysterese
+4,0–10,0 K), `22 00 F8 7A 40 00 0A`/`22 00 F9 7A 40 00 28` (Leistung 1,0–4,0 kW).
+**Wichtig:** Diese zwei liegen NICHT auf `0x601` (Kühlkurve), sondern auf eigenen
+Modulen (Hysterese `0x180`, Leistung `0x480`) → Lese-/Schreib-Adressierung
+separat bestimmen.
 
 **Noch offen:** `F8`/`F9`-Gerätegrenzen (Edit-Screens waren im Lese-Log nicht
 geöffnet), KühlART-Enum-Werte, Schreibformat-Bestätigung, Grundeinstellung-
@@ -644,7 +652,7 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
     - [x] **Minimal-Temp „Aus" als HA-Write gerätebestätigt** (30.07., `logs/aus-write-test.log`): Schieber 0/5 → `TX 0x680 C0 01 FA 4E A7 90 00`, Echo `D2 .. 90 00`, Display „Aus"; Schieber 10 → `.. 00 64`, Display 10 °C.
 - [x] **Kühlkurve auslesen** (30.07.) – Menü `Kühlen → Kühlkreis 1` komplett auf Modul `0x601` (wie Heizen): `0x4F08` Ein/Aus, `0x4F04` Raumsolltemp ÷10, `0x4F05` KühlART, `0x4FB9` Steigung Kühlkurve ÷100, `0x4FBE` Starttemp ÷10. Drei Zahlenwerte display-bestätigt. Details im Abschnitt „Kühlkurve / Menü Kühlen".
   - [ ] KühlART-Enum (`0x4F05`) + Ein/Aus (`0x4F08`) wert-eindeutig bestätigen (Modi durchschalten)
-  - [ ] Grundeinstellung disambiguieren: `0x4F00` vs `0x7A40` (beide =40=4.0) → Leistung kW vs Hysterese Vorlauf K
+  - [x] **Grundeinstellung disambiguiert** (30.07.): `0x4F00` = Hysterese Vorlauftemp (÷10, 4,0–10,0 K, auf 0x180), `0x7A40` = Leistung (÷10, 1,0–4,0 kW, auf 0x480). Per Display-Änderung 4,0→5,0→4,0 K bestätigt, F8/F9-Grenzen mit abgegriffen.
   - [ ] `F8`/`F9`-Gerätegrenzen für Kühl-Parameter abgreifen (Edit-Screens gezielt öffnen)
   - [ ] Read-Entities fürs Kühlen ins Manifest (nach Nutzer-OK)
 - [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – ACHTUNG: `32 00 FA ...` ist NICHT generisch. Es funktioniert nur fürs Betriebsart-Modul (0x480); beim Mischermodul (0x601, Heizkurve) blieb es wirkungslos (siehe Heizkurve-Schreiben oben). Schreib-Adressierung ist modulspezifisch und ≠ Lese-Header → pro Zielmodul per Display-Sniff bestätigen
