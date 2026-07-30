@@ -539,7 +539,8 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
   - [x] Schreibformat für Komforttemperatur/Eco-Temperatur (0x4EB8/0x4EB9) geklärt – war Header-Problem (`32 00` falsch), korrekt ist `C0 01` (siehe oben). Entities gebaut.
   - [ ] Niveau/Komfort-Temperatur der Heizkurve auslesen (eigener Index, noch offen)
   - [x] Bonus-Kandidaten `0x4EA7`/`0x4EA4` auf 0x601 zugeordnet: **MINIMAL TEMPERATUR** (÷10, „Aus"=0x9000) bzw. **RAUMEINFLUSS** (×1 %). Siehe Abschnitt „Bonus-Kandidaten zugeordnet".
-    - [ ] Optional: Read-Sensoren + Schreib-Entities für Minimal-Temp/Raumeinfluss bauen (Minimal-Temp braucht „Aus"-Behandlung für 0x9000)
+    - [x] Read-Sensoren + Schreib-Entities gebaut: Sensoren „Minimal Temperatur/Raumeinfluss Heizkreis", number „… setzen" (Min-Temp 10–30 °C, Raumeinfluss 0–100 %), Poll erweitert. „Aus": Sensor→NaN, plus Schalter „Minimal Temperatur aktiv" (aus=0x9000, an=letzte Temp/Fallback 10 °C).
+    - [ ] Alle vier neuen 0x601-Writes (Komfort/Eco/Min-Temp/Raumeinfluss) noch am Gerät verifizieren (TX-Log + Display)
 - [ ] **Kühlkurve auslesen** – analog unter Einstellungen→Kühlen
 - [ ] **Set-Telegramm-Format für Kühlkurve ableiten** – ACHTUNG: `32 00 FA ...` ist NICHT generisch. Es funktioniert nur fürs Betriebsart-Modul (0x480); beim Mischermodul (0x601, Heizkurve) blieb es wirkungslos (siehe Heizkurve-Schreiben oben). Schreib-Adressierung ist modulspezifisch und ≠ Lese-Header → pro Zielmodul per Display-Sniff bestätigen
 - [ ] **Schreib-Service in ESPHome ergänzen** (number/select-Entities) – erst nachdem Set-Format bestätigt ist, mit Min/Max-Grenzen im Code
