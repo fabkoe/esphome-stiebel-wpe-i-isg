@@ -150,7 +150,7 @@ HAUPTMENÜ
 │   ├── WÄRMEPUMPE
 │   │   ├── PROZESSDATEN
 │   │   │   ├── Rücklauftemperatur             ✅
-│   │   │   ├── Vorlauftemperatur              📄 (0x01D6)
+│   │   │   ├── Vorlauftemperatur              ✅ (0x01D6)
 │   │   │   ├── Verdampfertemperatur           ✅
 │   │   │   ├── Verdichtereintrittstemperatur  ✅
 │   │   │   ├── Heißgastemperatur              ✅
@@ -180,33 +180,33 @@ HAUPTMENÜ
 │   │   │   ├── VD Warmwasser Tag          📄
 │   │   │   └── VD Warmwasser Summe        ✅
 │   │   ├── LAUFZEIT
-│   │   │   ├── VD Heizen                  📄 (0x4EFB)
-│   │   │   ├── VD Warmwasser              📄 (0x4EFD)
-│   │   │   ├── NHZ 1                      📄 (0x0259)
-│   │   │   ├── NHZ 2                      📄 (0x025A)
-│   │   │   ├── NHZ 1/2                    📄 (0x0805)
-│   │   │   └── Passivkühlung              📄 (0x4F9A)
+│   │   │   ├── VD Heizen                  ✅ (0x4EFB)
+│   │   │   ├── VD Warmwasser              ✅ (0x4EFD)
+│   │   │   ├── NHZ 1                      ✅ (0x0259)
+│   │   │   ├── NHZ 2                      ✅ (0x025A)
+│   │   │   ├── NHZ 1/2                    ✅ (0x0805)
+│   │   │   └── Passivkühlung              ✅ (0x4F9A)
 │   │   └── STARTS
-│   │       └── Verdichter                📄 (0x4EF0/0x4EF1)
+│   │       └── Verdichter                ✅ (0x4EF0/0x4EF1)
 │   └── ENERGIEBILANZ / GESAMTSYSTEM
 │       ├── WÄRMEMENGE
 │       │   ├── Heizen 1–24 h             ❓ (Tageswert)
 │       │   ├── Heizen 1–12 M             ✅
-│       │   ├── Heizen 13–24 M            📄 (0x502C)
+│       │   ├── Heizen 13–24 M            ✅ (0x502C)
 │       │   ├── Warmwasser 1–24 h         ❓
 │       │   ├── Warmwasser 1–12 M         ✅
-│       │   └── Warmwasser 13–24 M        📄 (0x5030)
+│       │   └── Warmwasser 13–24 M        ✅ (0x5030)
 │       ├── STROMVERBRAUCH
 │       │   ├── Heizen 1–24 h             ❓
 │       │   ├── Heizen 1–12 M             ✅
-│       │   ├── Heizen 13–24 M            📄 (0x5032)
+│       │   ├── Heizen 13–24 M            ✅ (0x5032)
 │       │   ├── Warmwasser 1–24 h         ❓
 │       │   ├── Warmwasser 1–12 M         ✅
-│       │   └── Warmwasser 13–24 M        📄 (0x5036)
+│       │   └── Warmwasser 13–24 M        ✅ (0x5036)
 │       └── EFFIZIENZ
-│           ├── Heizen 1–12 M             📄 (0x501E)
-│           ├── Warmwasser 1–12 M         📄 (0x5022)
-│           ├── Warmwasser 13–24 M        📄 (0x503A)
+│           ├── Heizen 1–12 M             ✅ (0x501E)
+│           ├── Warmwasser 1–12 M         ✅ (0x5022)
+│           ├── Warmwasser 13–24 M        ✅ (0x503A)
 │           └── übrige 1–24 h / 13–24 M   ❓
 ├── DIAGNOSE
 │   ├── Status Anlage
@@ -254,9 +254,11 @@ HAUPTMENÜ
 ```
 
 **Beobachtungen zum Abgleich:**
-- **Größte „geschenkte" Zuwächse (nur lesen, Risiko 0, Indizes schon bekannt):**
-  Laufzeit (6), Starts (1), Prozessdaten-Vorlauf `0x01D6`, Energiebilanz-Rest
-  (13–24-M-Wärme/Strom + Effizienz). Fehlen nur als Sensor-Blöcke im Manifest.
+- **Nur-Lese-Zuwächse (31.07.2026) ins Manifest gebaut, Flash-Verifikation
+  ausstehend:** Laufzeit (6), Starts (1), Prozessdaten-Vorlauf `0x01D6`,
+  Energiebilanz-Rest (13–24-M-Wärme/Strom + Effizienz `0x501E/0x5022/0x503A`).
+  Indizes aus früheren Sessions display-bestätigt; Sensoren `entity_category
+  diagnostic`, Poll über 0x680 (IWS `A1 14` bzw. Manager `91 00`).
 - **Taupunkttemperatur (FET1)** noch ohne Index – der für die Kühl-Sicherheit
   (Kondensat/Estrich) interessanteste offene Wert.
 - **KÜHLEN-Schalter `0x4F07`** ist in dieser Abschrift nicht eindeutig zu
@@ -715,7 +717,8 @@ einzelner ×100-Wert. **11 Werte digit-genau gegen die Display-Fotos bestätigt.
 | Effizienz Heizen (÷100) | `0x501E` | – | 7,56 |
 | Effizienz WW (÷100) | `0x5022` | – | 4,32 |
 
-**Zeitfenster 13–24 M** (bestätigt, noch nicht als Sensor umgesetzt):
+**Zeitfenster 13–24 M** (bestätigt, seit 31.07.2026 als Sensoren im Manifest –
+Flash-Verifikation ausstehend):
 
 | Wert | MWh-idx | kWh-idx | Display |
 |---|---|---|---|
@@ -845,9 +848,10 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
   - [x] Request-Header für 0x500-Ziel über 0x680 ermittelt (`A1 00 FA …`)
   - [x] **Manifest-Fix umgesetzt: Energie-Summenpolls von 0x500 auf 0x514 (IWS)** – Header `A1 14`, Decode `0x514`. In HA gerätebestätigt: Wärme Heizen 15.216, NHZ Heizen 3.214, NHZ WW 367, El Heizen 2.033 kWh = Display-Werte
   - [x] Gesamtsystem-Screen zugeordnet und im Manifest (4 Sensoren, 1–12M, gerätebestätigt)
+  - [x] **13–24M-Fenster + Effizienz ins Manifest** (31.07.) – 4 Energie-Sensoren (`0x502C/0x5030/0x5032/0x5036`) + 3 Effizienz (`0x501E/0x5022/0x503A`), 300s-Poll `91 00`. Flash-Verifikation ausstehend.
   - [ ] Optional: Tageszähler-Sensoren (`…_TAG_*` auf 0x514) ergänzen, falls Tageswerte gewünscht
 - [x] **Laufzeiten + Starts komplett bestätigt** (29.07.) – `0x4EFB`/`0x4EFD` (VD), `0x0259`/`0x025A` (NHZ1/2), `0x0805` (NHZ1/2 gemeinsam), `0x4F9A` (Passivkühlung), `0x4EF0`/`0x4EF1` (Starts, Split). Siehe Abschnitt „Laufzeiten & Starts"
-  - [ ] Optional: Laufzeit-/Start-Sensoren ins Manifest (diagnostic, langsames Intervall)
+  - [x] **Laufzeit-/Start-Sensoren ins Manifest** (31.07.) – 6 Laufzeiten + Verdichter-Starts (Split), `entity_category diagnostic`, IWS-Poll `A1 14`. Plus Prozessdaten-Vorlauf `0x01D6`. Flash-Verifikation ausstehend.
 - [ ] Mischermodul-Wert (`0x4EB4` auf 0x601, ~19,1–19,2°C) einer konkreten Bedeutung zuordnen (vermutlich Vorlauf HK2)
 - [x] `0x0074` geklärt = **EVU_SPERRE_AKTIV** (Standard-Elster, val=1=aktiv; ändert sich nicht mit Betriebsart – konsistent)
   - [ ] `0x4EB3` auf 0x401/0x100 (val=1) noch offen
