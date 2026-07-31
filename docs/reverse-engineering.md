@@ -769,6 +769,8 @@ Erkenntnisse aus dem Log:
   ab). **Beide Richtungen als HA-Write gerätebestätigt** (`logs/aus-write-test.log`):
   Schieber 0 bzw. 5 → `TX id=0x680 raw=C0 01 FA 4E A7 90 00`, Echo
   `D2 00 FA 4E A7 90 00`, Display „Aus"; Schieber 10 → `.. A7 00 64`, Display 10 °C.
+  **Anzeige (31.07.):** Lese-Wert als Text-Sensor („Aus" bzw. „18.0 °C") statt
+  numerisch – NaN/„unbekannt" war irreführend für den Zustand „Aus".
 - **Read-back** an Steigung + allen HK-Writes bestätigt: Übernahme jetzt ~0,75 s
   statt bis zu 47 s (Steigung 0,60 gesendet → Echo `D2 .. 4F 2B 00 3C` nach 0,75 s).
 
