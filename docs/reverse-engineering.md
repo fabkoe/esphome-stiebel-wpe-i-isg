@@ -748,6 +748,59 @@ Zuordnung bräuchte es einen korrelierten Sniff (Display-Zeile ↔ Frame).
 
 ## TODOs
 
+### 🔭 Aktuelle Prioritäten (Stand 31.07.2026)
+
+Frische Arbeitsliste; das ausführliche historische Log (erledigt + Details)
+steht unverändert darunter.
+
+**Erledigt bis hier:** Heizkreis-1- und Kühlen-Menü lesend + schreibend
+geräteverifiziert; Prozessdaten, Energiezähler, Energiebilanz (1–12M **und**
+13–24M + Effizienz), Laufzeiten, Starts als Sensoren im Manifest und am Gerät
+bestätigt; `entity_category` (Konfiguration/Diagnose) gesetzt; Minimal-Temp als
+Text-Sensor („Aus").
+
+**A – Schreibzugriff Kühlen abschließen**
+- [ ] **Leistung `0x7A40`** (Kühlen-Grundeinstellung): Schreib-Modul unbekannt
+  (Lese ≠ Schreib). Zuerst Schreibziel per **No-Op-Rückschreiben** einkreisen,
+  erst dann eine Schreib-Entity bauen. (Modul-Kandidat 0x480.)
+- [ ] **Display-Name des KÜHLEN-Schalters `0x4F07`** am Gerät bestätigen.
+
+**B – Betriebsart robuster**
+- [ ] **Aktive Betriebsart-Abfrage reparieren**: `41 01 FA 4F 1B` wird mit
+  `-32768` auf 0x201 beantwortet (falsches Zielmodul); Wert kommt derzeit nur
+  über Broadcasts bei echten Wechseln. Anderes Anfrage-Header/Modul finden.
+- [ ] Programmbetrieb (=2) verifizieren. **Not-Betrieb (=6) NICHT aktiv testen.**
+
+**C – Neue RE-Leseziele (aus Menü-Coverage ❓)**
+- [ ] **Taupunkttemperatur (FET1)** – Index suchen; relevant fürs Kühlen
+  (Kondensat/Estrich).
+- [ ] **Kühlen-Live-Werte** (Info→Anlage→Kühlen): Ist/Soll, KK1 Ist/Soll.
+- [ ] **Heizung-Unterwerte**: HK1 Ist/Soll, Vorlauf NHZ, Festwertsoll,
+  Heizungsdruck, Volumenstrom, Anlagenfrost.
+- [ ] **Elektrische Nacherwärmung**: Bivalenz/Einsatzgrenze HZG + WW.
+- [ ] **Warmwasser-Einstellungen**: Komfort/Eco WW, Hysterese, Stufen,
+  Zirkulation, Antilegionellen.
+- [ ] **Heizen-Grundeinstellung**: Sommerbetrieb, Vorlaufanteil, Max Rück-/
+  Vorlauftemp, Festwertbetrieb.
+- [ ] Ist- vs. Solldrehzahl (`0x06EB`/`0x06EC`) bei **laufendem** Verdichter
+  auflösen; Mischermodul `0x4EB4` (Vorlauf HK2?) und `0x4EB3` zuordnen.
+
+**D – HA-Integration / Ausbau**
+- [ ] **Ansehnliches HA-Dashboard bauen** – Übersicht mit Alltagswerten,
+  Prozessdaten, Energie/COP und Steuerungen; nutzt die `entity_category`-
+  Gruppierung. (Später konkretisieren: Lovelace-Layout, Karten, ggf. apexcharts.)
+- [ ] Optional: Tageszähler-Sensoren (`…_TAG_*` auf 0x514) ergänzen.
+- [ ] Optional: number-Untergrenze Steigung Heizkurve 0,1 → 0,2 (Gerätemin).
+- [ ] Polling-Intervalle pro Wert individualisieren (langsame Zähler seltener).
+
+**E – Housekeeping**
+- [ ] Meldungsliste (14 Einträge) inhaltlich prüfen (Altmeldungen vs. aktiv).
+- [ ] Niveau/Komfort-Temperatur der Heizkurve (eigener Index) auslesen.
+- [ ] Manifest ggf. PR-fähig aufbereiten (OneESP32) – optional, eigenes
+  Produktivprojekt bleibt Basis.
+
+---
+
 ### ✅ HEIZKREIS-1-Menü komplett geräteverifiziert (30.07.2026)
 **Alle Schreib-Entities des HEIZKREIS-1-Menüs sind am Gerät bestätigt**
 (Logs: `logs/hk-parameter-write-test.log` + `logs/aus-write-test.log`):

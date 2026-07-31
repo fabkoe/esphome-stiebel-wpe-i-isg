@@ -108,17 +108,19 @@ ESPHome-CLI, nicht über das HA-Add-on.
 
 ## Aktueller Stand / nächste Schritte
 
-Siehe TODO-Sektion in `docs/reverse-engineering.md`. Kurzfassung (30.07.2026):
-Heizkreis-1-Menü komplett gelesen + schreibend gerätebestätigt
-(Betriebsart, Heizkurve, Komfort/Eco/Min-Temp/Raumeinfluss).
-Prozessdaten + Energie-/Laufzeitzähler bestätigt und im Manifest.
-Kühlen-Menü: alle 8 Werte lesend bestätigt; schreibend gerätebestätigt
-sind Kühlkreis Ein/Aus (`0x4F08`, `C0 01`), KÜHLEN-Schalter (`0x4F07`)
-und Hysterese (`0x4F00`) – beide `0x180` via `32 00`. Alle `0x601`-Kühlwerte
-schreibend abgenommen: Raumsoll (`0x4F04`) log+display-belegt; Steigung
-(`0x4FB9`), Starttemp (`0x4FBE`) und KühlART (`0x4F05`) display-verifiziert
-(ohne Session-TX-Log). Offen: Leistung `0x7A40` (Schreib-Modul unklar). **Schreib-Systematik:** `0x601`-Modul
-→ `C0 01`, `0x180`-Manager → `32 00` (kein generischer Header!).
+Siehe TODO-Sektion in `docs/reverse-engineering.md` (frische Prioritätenliste
+oben). Kurzfassung (31.07.2026):
+Heizkreis-1- und Kühlen-Menü komplett gelesen + schreibend gerätebestätigt.
+Alle `0x601`-Kühlwerte schreibend abgenommen (Raumsoll `0x4F04` log+display,
+Steigung/Starttemp/KühlART display-verifiziert). **Schreib-Systematik:**
+`0x601`-Modul → `C0 01`, `0x180`-Manager → `32 00` (kein generischer Header!).
+Lesend im Manifest **und am Gerät bestätigt**: Prozessdaten, Energiezähler,
+Energiebilanz (1–12M + 13–24M + Effizienz), Laufzeiten, Starts, Vorlauf-PD
+(`logs/readsensors-verify.log`). `entity_category` (Konfiguration/Diagnose)
+gesetzt; Minimal-Temp als Text-Sensor („Aus").
+Offen (Prioritäten in docs): Leistung `0x7A40` Schreib-Modul einkreisen;
+Display-Name KÜHLEN `0x4F07`; neue Leseziele (Taupunkt, Kühlen-Live-Werte,
+E-Nacherwärmung, Heizung-Unterwerte); **ansehnliches HA-Dashboard bauen**.
 PoC mit `ha-stiebel-control`
 abgeschlossen: Framework liest die WPE-I bei 50 kbps korrekt
 (display-verifiziert), taugt aber nur als RE-Werkzeug/Backup, nicht als
