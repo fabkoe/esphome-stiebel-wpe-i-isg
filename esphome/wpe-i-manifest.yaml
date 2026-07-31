@@ -116,6 +116,29 @@ globals:
     type: int16_t
     restore_value: false
     initial_value: '0'
+  # Verdichter-Starts: Tausender-Teil (0x4EF0) zwischenspeichern, mit
+  # 0x4EF1 zum Gesamtwert (Starts = 0x4EF0*1000 + 0x4EF1) kombinieren.
+  - id: g_starts_vd_k
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  # Gesamtsystem 13-24M (Manager 0x480): MWh-Teil zwischenspeichern.
+  - id: g_gs_wm_heiz_mwh_24
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_gs_wm_ww_mwh_24
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_gs_strom_heiz_mwh_24
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
+  - id: g_gs_strom_ww_mwh_24
+    type: int16_t
+    restore_value: false
+    initial_value: '0'
 
 sensor:
   - platform: template
@@ -388,6 +411,134 @@ sensor:
     device_class: energy
     state_class: measurement
     accuracy_decimals: 0
+
+  # --- Laufzeiten (IWS 0x514), Indizes 29.07.2026 display-bestaetigt ---
+  # Betriebsstunden -> nur steigend (total_increasing), device_class duration.
+  - platform: template
+    name: "Laufzeit VD Heizen"
+    entity_category: diagnostic
+    id: laufzeit_vd_heizen
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 0
+  - platform: template
+    name: "Laufzeit VD Warmwasser"
+    entity_category: diagnostic
+    id: laufzeit_vd_ww
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 0
+  - platform: template
+    name: "Laufzeit NHZ 1"
+    entity_category: diagnostic
+    id: laufzeit_nhz1
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 0
+  - platform: template
+    name: "Laufzeit NHZ 2"
+    entity_category: diagnostic
+    id: laufzeit_nhz2
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 0
+  - platform: template
+    name: "Laufzeit NHZ 1+2"
+    entity_category: diagnostic
+    id: laufzeit_nhz12
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 0
+  - platform: template
+    name: "Laufzeit Passivkuehlung"
+    entity_category: diagnostic
+    id: laufzeit_passivkuehlung
+    unit_of_measurement: "h"
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  # --- Starts (IWS 0x514): Verdichter, Split 0x4EF0*1000 + 0x4EF1 ---
+  - platform: template
+    name: "Verdichter Starts"
+    entity_category: diagnostic
+    id: verdichter_starts
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  # --- Prozessdaten-Vorlauftemperatur (IWS 0x514, Index 0x01D6) ---
+  # Interner WP-Vorlauf (Elster WPVORLAUFIST); kann mit "Vorlauftemperatur
+  # Waermepumpe" (0xFDF3) deckungsgleich sein - hier separat als Prozessdatum.
+  - platform: template
+    name: "Vorlauftemperatur Prozessdaten"
+    entity_category: diagnostic
+    id: vorlauftemp_pd
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+
+  # --- Gesamtsystem-Energiebilanz 13-24M (Manager 0x480) ---
+  # Vorjahresfenster, rollend -> measurement (nicht total_increasing).
+  - platform: template
+    name: "Gesamt Waermemenge Heizen 13-24M"
+    entity_category: diagnostic
+    id: gs_wm_heiz_24
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    name: "Gesamt Waermemenge Warmwasser 13-24M"
+    entity_category: diagnostic
+    id: gs_wm_ww_24
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    name: "Gesamt Stromverbrauch Heizen 13-24M"
+    entity_category: diagnostic
+    id: gs_strom_heiz_24
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: measurement
+    accuracy_decimals: 0
+  - platform: template
+    name: "Gesamt Stromverbrauch Warmwasser 13-24M"
+    entity_category: diagnostic
+    id: gs_strom_ww_24
+    unit_of_measurement: "kWh"
+    device_class: energy
+    state_class: measurement
+    accuracy_decimals: 0
+
+  # --- Effizienz/COP (Manager 0x480, /100) - Geraete-eigene Werte ---
+  # Hinweis: fuer 1-12M gibt es zusaetzlich HA-seitig berechenbaren COP aus
+  # Waerme/Strom; hier die Anzeige-Werte des Geraets direkt.
+  - platform: template
+    name: "Effizienz Heizen 12M"
+    entity_category: diagnostic
+    id: gs_cop_heiz_12
+    state_class: measurement
+    accuracy_decimals: 2
+  - platform: template
+    name: "Effizienz Warmwasser 12M"
+    entity_category: diagnostic
+    id: gs_cop_ww_12
+    state_class: measurement
+    accuracy_decimals: 2
+  - platform: template
+    name: "Effizienz Warmwasser 13-24M"
+    entity_category: diagnostic
+    id: gs_cop_ww_24
+    state_class: measurement
+    accuracy_decimals: 2
 
   # --- Prozessdaten (IWS 0x514), bestaetigt 29.07.2026 ---
   # Kaeltekreis-Temperaturen
@@ -804,6 +955,20 @@ canbus:
               if (idx == 0x4FA8 && can_id == 0x514) { id(wq_druck).publish_state(val / 10.0f); }
               if (idx == 0x4FA9 && can_id == 0x514) { id(wq_pumpenleistung).publish_state(val / 10.0f); }
 
+              // --- Prozessdaten-Vorlauf + Laufzeiten + Starts (IWS 0x514) ---
+              if (idx == 0x01D6 && can_id == 0x514) { id(vorlauftemp_pd).publish_state(val / 10.0f); }
+              if (idx == 0x4EFB && can_id == 0x514) { id(laufzeit_vd_heizen).publish_state(val); }
+              if (idx == 0x4EFD && can_id == 0x514) { id(laufzeit_vd_ww).publish_state(val); }
+              if (idx == 0x0259 && can_id == 0x514) { id(laufzeit_nhz1).publish_state(val); }
+              if (idx == 0x025A && can_id == 0x514) { id(laufzeit_nhz2).publish_state(val); }
+              if (idx == 0x0805 && can_id == 0x514) { id(laufzeit_nhz12).publish_state(val); }
+              if (idx == 0x4F9A && can_id == 0x514) { id(laufzeit_passivkuehlung).publish_state(val); }
+              // Verdichter-Starts: 0x4EF0 (Tausender) puffern, mit 0x4EF1 kombinieren
+              if (idx == 0x4EF0 && can_id == 0x514) { id(g_starts_vd_k) = val; }
+              if (idx == 0x4EF1 && can_id == 0x514) {
+                id(verdichter_starts).publish_state((float)id(g_starts_vd_k) * 1000.0f + val);
+              }
+
               // --- GESAMTSYSTEM 1-12M (Energiebilanz) auf CAN-ID 0x480 (Manager) ---
               // MWh+kWh kombiniert, rollendes 12-Monats-Fenster.
               // Waermemenge Heizen: MWh 0x5007 / kWh 0x5008
@@ -826,6 +991,28 @@ canbus:
               if (idx == 0x501C && can_id == 0x480) {
                 id(gs_strom_ww).publish_state((float)id(g_gs_strom_ww_mwh) * 1000.0f + val);
               }
+
+              // --- GESAMTSYSTEM 13-24M + Effizienz auf CAN-ID 0x480 (Manager) ---
+              if (idx == 0x502C && can_id == 0x480) { id(g_gs_wm_heiz_mwh_24) = val; }
+              if (idx == 0x502D && can_id == 0x480) {
+                id(gs_wm_heiz_24).publish_state((float)id(g_gs_wm_heiz_mwh_24) * 1000.0f + val);
+              }
+              if (idx == 0x5030 && can_id == 0x480) { id(g_gs_wm_ww_mwh_24) = val; }
+              if (idx == 0x5031 && can_id == 0x480) {
+                id(gs_wm_ww_24).publish_state((float)id(g_gs_wm_ww_mwh_24) * 1000.0f + val);
+              }
+              if (idx == 0x5032 && can_id == 0x480) { id(g_gs_strom_heiz_mwh_24) = val; }
+              if (idx == 0x5033 && can_id == 0x480) {
+                id(gs_strom_heiz_24).publish_state((float)id(g_gs_strom_heiz_mwh_24) * 1000.0f + val);
+              }
+              if (idx == 0x5036 && can_id == 0x480) { id(g_gs_strom_ww_mwh_24) = val; }
+              if (idx == 0x5037 && can_id == 0x480) {
+                id(gs_strom_ww_24).publish_state((float)id(g_gs_strom_ww_mwh_24) * 1000.0f + val);
+              }
+              // Effizienz (÷100) - Geraete-eigene Anzeige-Werte
+              if (idx == 0x501E && can_id == 0x480) { id(gs_cop_heiz_12).publish_state(val / 100.0f); }
+              if (idx == 0x5022 && can_id == 0x480) { id(gs_cop_ww_12).publish_state(val / 100.0f); }
+              if (idx == 0x503A && can_id == 0x480) { id(gs_cop_ww_24).publish_state(val / 100.0f); }
 
               // Rohdaten weiterhin ins Log, falls wir spaeter noch was
               // Unbekanntes nachverfolgen wollen
@@ -1008,6 +1195,30 @@ interval:
           id(my_canbus).send_data(0x680, false, r3);
           std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x4F, 0xA9, 0x00, 0x00}; // WQ-Pumpenleistung
           id(my_canbus).send_data(0x680, false, r4);
+      - delay: 200ms
+      - lambda: |-
+          // Prozessdaten-Vorlauf (0x01D6) + Laufzeiten (Teil 1)
+          std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x01, 0xD6, 0x00, 0x00}; // Vorlauf PD
+          id(my_canbus).send_data(0x680, false, r1);
+          std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x4E, 0xFB, 0x00, 0x00}; // Laufzeit VD Heizen
+          id(my_canbus).send_data(0x680, false, r2);
+          std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x4E, 0xFD, 0x00, 0x00}; // Laufzeit VD WW
+          id(my_canbus).send_data(0x680, false, r3);
+          std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x02, 0x59, 0x00, 0x00}; // Laufzeit NHZ1
+          id(my_canbus).send_data(0x680, false, r4);
+          std::vector<uint8_t> r5 = {0xA1, 0x14, 0xFA, 0x02, 0x5A, 0x00, 0x00}; // Laufzeit NHZ2
+          id(my_canbus).send_data(0x680, false, r5);
+      - delay: 200ms
+      - lambda: |-
+          // Laufzeiten (Teil 2) + Verdichter-Starts (Tausender 0x4EF0 VOR Rest 0x4EF1)
+          std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x08, 0x05, 0x00, 0x00}; // Laufzeit NHZ1/2
+          id(my_canbus).send_data(0x680, false, r1);
+          std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x4F, 0x9A, 0x00, 0x00}; // Laufzeit Passivkuehlung
+          id(my_canbus).send_data(0x680, false, r2);
+          std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x4E, 0xF0, 0x00, 0x00}; // Starts (Tausender)
+          id(my_canbus).send_data(0x680, false, r3);
+          std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x4E, 0xF1, 0x00, 0x00}; // Starts (Rest)
+          id(my_canbus).send_data(0x680, false, r4);
 
   # --- Gesamtsystem-Energiebilanz 1-12M (Manager 0x480) ueber 0x680 ---
   # Jahreswerte aendern sich langsam -> eigener, langsamer Poll (300s).
@@ -1041,6 +1252,43 @@ interval:
           id(my_canbus).send_data(0x680, false, r_mwh);
           std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x1C, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Gesamt Waermemenge Heizen 13-24M (MWh 0x502C + kWh 0x502D)
+          std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x2C, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x2D, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Gesamt Waermemenge Warmwasser 13-24M (MWh 0x5030 + kWh 0x5031)
+          std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x30, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x31, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Gesamt Stromverbrauch Heizen 13-24M (MWh 0x5032 + kWh 0x5033)
+          std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x32, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x33, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Gesamt Stromverbrauch Warmwasser 13-24M (MWh 0x5036 + kWh 0x5037)
+          std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x36, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_mwh);
+          std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x37, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r_kwh);
+      - delay: 200ms
+      - lambda: |-
+          // Effizienz (0x501E Heizen 12M, 0x5022 WW 12M, 0x503A WW 13-24M)
+          std::vector<uint8_t> r1 = {0x91, 0x00, 0xFA, 0x50, 0x1E, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r1);
+          std::vector<uint8_t> r2 = {0x91, 0x00, 0xFA, 0x50, 0x22, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r2);
+          std::vector<uint8_t> r3 = {0x91, 0x00, 0xFA, 0x50, 0x3A, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, r3);
 
 # =========================================================================
 # EXPERIMENTELL: Schreib-Test fuer Betriebsart (Index 0x4F1B)
