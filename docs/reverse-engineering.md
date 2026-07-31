@@ -103,37 +103,167 @@ Wichtig: Der Anfrage-Byte-Header (`41 01` vs. `A1 14`) scheint je nach angefragt
 
 ## Vollständige Menüstruktur des WPM4-Displays
 
+Vom Gerät abgetippte, rechtschreibkorrigierte Menüstruktur (Stand 31.07.2026,
+Ansicht „Experte"). Angezeigte Werte im Original sind Momentaufnahmen vom
+Aufschreiben und nicht zwingend aktuell; hier weggelassen. `->` am Gerät =
+veränderbar. **Menü noch unvollständig** (Programm, Diagnose-Unterpunkte,
+Betriebsart-Auswahl nur teilweise erfasst).
+
+**Coverage-Legende:** ✅ Sensor-Entity im Manifest · ✏️ schreibbare Entity
+vorhanden · 📄 Index bekannt/dokumentiert, aber Entity fehlt noch (Index in
+Klammern) · ❓ offen (kein Index).
+
 ```
 HAUPTMENÜ
-├── INFO ▸
-│   ├── ANLAGE ▸
-│   │   ├── RAUMTEMPERATUR    (Ist/Soll/Feuchte/Taupunkt)
-│   │   ├── HEIZUNG           (HK1 Ist/Soll, Vorlauf WP/NHZ, Rücklauf, Druck, Volumenstrom)
-│   │   ├── WARMWASSER        (Ist/Soll/Volumenstrom)
+├── INFO
+│   ├── ANLAGE
+│   │   ├── RAUMTEMPERATUR / FET1
+│   │   │   ├── Isttemperatur              ✅
+│   │   │   ├── Solltemperatur             ❓
+│   │   │   ├── Raumfeuchte                ✅
+│   │   │   └── Taupunkttemperatur         ❓  ← relevant fürs Kühlen (Estrich/Kondensat)
+│   │   ├── HEIZUNG
+│   │   │   ├── Außentemperatur            ✅
+│   │   │   ├── Isttemperatur HK 1         ❓
+│   │   │   ├── Solltemperatur HK 1        ❓
+│   │   │   ├── Vorlaufisttemperatur WP    ✅
+│   │   │   ├── Vorlaufisttemperatur NHZ   ❓
+│   │   │   ├── Rücklaufisttemperatur WE   ✅
+│   │   │   ├── Festwertsolltemperatur WE  ❓
+│   │   │   ├── Heizungsdruck              ❓
+│   │   │   ├── Volumenstrom               ❓
+│   │   │   └── Anlagenfrost               ❓  (= Frostschutz-Einstellung)
+│   │   ├── WARMWASSER
+│   │   │   ├── Isttemperatur              ✅
+│   │   │   ├── Solltemperatur             ✅
+│   │   │   └── Volumenstrom               ❓
 │   │   ├── KÜHLEN
+│   │   │   ├── Isttemperatur              ❓
+│   │   │   ├── Solltemperatur             ❓
+│   │   │   ├── Isttemperatur KK 1         ❓
+│   │   │   └── Solltemperatur KK 1        ❓
 │   │   └── ELEKTRISCHE NACHERWÄRMUNG
-│   ├── WÄRMEPUMPE ▸
-│   │   ├── PROZESSDATEN      (3 Unterseiten: Kältekreis-Temperaturen, Drücke, Inverter-Strom/Spannung/Drehzahl)
-│   │   ├── WÄRMEMENGE        (VD Heizen/WW Tag+Summe, NHZ Heizen Summe)
-│   │   ├── LEISTUNGSAUFNAHME (VD Heizen/WW Tag+Summe)
-│   │   ├── LAUFZEIT          (u.a. Passivkühlung)
+│   │       ├── Bivalenztemperatur HZG     ❓
+│   │       ├── Einsatzgrenze HZG          ❓
+│   │       ├── Bivalenztemperatur WW      ❓
+│   │       └── Einsatzgrenze WW           ❓
+│   ├── WÄRMEPUMPE
+│   │   ├── PROZESSDATEN
+│   │   │   ├── Rücklauftemperatur             ✅
+│   │   │   ├── Vorlauftemperatur              📄 (0x01D6)
+│   │   │   ├── Verdampfertemperatur           ✅
+│   │   │   ├── Verdichtereintrittstemperatur  ✅
+│   │   │   ├── Heißgastemperatur              ✅
+│   │   │   ├── Verflüssigertemperatur         ✅
+│   │   │   ├── Ölsumpftemperatur              ✅
+│   │   │   ├── Druck Niederdruck              ✅
+│   │   │   ├── Druck Hochdruck                ✅
+│   │   │   ├── WP Wasser Volumenstrom         ✅
+│   │   │   ├── Strom Inverter                 ✅
+│   │   │   ├── Spannung Inverter              ✅
+│   │   │   ├── Istdrehzahl Verdichter         ✅
+│   │   │   ├── Solldrehzahl Verdichter        ✅
+│   │   │   ├── Rücklauftemperatur Wärmequelle ✅
+│   │   │   ├── Vorlaufisttemperatur Wärmeq.   ✅
+│   │   │   ├── Wärmequellendruck              ✅
+│   │   │   └── Leistung Wärmequellenpumpe     ✅
+│   │   ├── WÄRMEMENGE
+│   │   │   ├── VD Heizen Tag              📄 (Tageswert)
+│   │   │   ├── VD Heizen Summe            ✅
+│   │   │   ├── VD Warmwasser Tag          📄
+│   │   │   ├── VD Warmwasser Summe        ✅
+│   │   │   ├── NHZ Heizen Summe           ✅
+│   │   │   └── NHZ Warmwasser Summe       ✅
+│   │   ├── LEISTUNGSAUFNAHME
+│   │   │   ├── VD Heizen Tag              📄
+│   │   │   ├── VD Heizen Summe            ✅
+│   │   │   ├── VD Warmwasser Tag          📄
+│   │   │   └── VD Warmwasser Summe        ✅
+│   │   ├── LAUFZEIT
+│   │   │   ├── VD Heizen                  📄 (0x4EFB)
+│   │   │   ├── VD Warmwasser              📄 (0x4EFD)
+│   │   │   ├── NHZ 1                      📄 (0x0259)
+│   │   │   ├── NHZ 2                      📄 (0x025A)
+│   │   │   ├── NHZ 1/2                    📄 (0x0805)
+│   │   │   └── Passivkühlung              📄 (0x4F9A)
 │   │   └── STARTS
-│   └── ENERGIEBILANZ ▸
-│       └── GESAMTSYSTEM ▸
-│           ├── WÄRMEMENGE
-│           ├── STROMVERBRAUCH
-│           └── EFFIZIENZ
-│
-└── DIAGNOSE ▸
-    ├── STATUS ANLAGE
-    ├── STATUS WÄRMEPUMPE
-    ├── ANALYSE WÄRMEPUMPE    (Überhitzung Sauggas Soll/Ist, Verdichterdrehzahlgrenze)
-    ├── SYSTEM → BUSTEILNEHMER (Softwareversionen: WPM4, FES, FET1, MFG, WP1)
-    ├── INTERNE BERECHNUNG
-    ├── MELDUNGSLISTE
-    ├── RELAISTEST ANLAGE
-    └── RELAISTEST WÄRMEPUMPE
+│   │       └── Verdichter                📄 (0x4EF0/0x4EF1)
+│   └── ENERGIEBILANZ / GESAMTSYSTEM
+│       ├── WÄRMEMENGE
+│       │   ├── Heizen 1–24 h             ❓ (Tageswert)
+│       │   ├── Heizen 1–12 M             ✅
+│       │   ├── Heizen 13–24 M            📄 (0x502C)
+│       │   ├── Warmwasser 1–24 h         ❓
+│       │   ├── Warmwasser 1–12 M         ✅
+│       │   └── Warmwasser 13–24 M        📄 (0x5030)
+│       ├── STROMVERBRAUCH
+│       │   ├── Heizen 1–24 h             ❓
+│       │   ├── Heizen 1–12 M             ✅
+│       │   ├── Heizen 13–24 M            📄 (0x5032)
+│       │   ├── Warmwasser 1–24 h         ❓
+│       │   ├── Warmwasser 1–12 M         ✅
+│       │   └── Warmwasser 13–24 M        📄 (0x5036)
+│       └── EFFIZIENZ
+│           ├── Heizen 1–12 M             📄 (0x501E)
+│           ├── Warmwasser 1–12 M         📄 (0x5022)
+│           ├── Warmwasser 13–24 M        📄 (0x503A)
+│           └── übrige 1–24 h / 13–24 M   ❓
+├── DIAGNOSE
+│   ├── Status Anlage
+│   ├── Status Wärmepumpe
+│   ├── Analyse Wärmepumpe   (Überhitzung Sauggas Soll/Ist, Verdichterdrehzahlgrenze)
+│   └── System → Busteilnehmer (SW-Versionen: WPM4, FES, FET1, MFG, WP1)
+├── PROGRAMM
+├── EINSTELLUNGEN
+│   ├── Ansicht -> Experte
+│   ├── ALLGEMEIN            (Zeit/Datum, Sommerzeit, Sprache, Kontrast, Helligkeit, Touch)
+│   ├── FAVORITEN
+│   ├── HEIZEN
+│   │   ├── HEIZKREIS 1
+│   │   │   ├── Komforttemperatur ->      ✏️
+│   │   │   ├── ECO-Temperatur ->         ✏️
+│   │   │   ├── Minimaltemperatur ->      ✏️
+│   │   │   ├── Steigung Heizkurve ->     ✏️
+│   │   │   ├── Ansicht Heizkurve         (nur Anzeige)
+│   │   │   └── Raumeinfluss ->           ✏️
+│   │   ├── GRUNDEINSTELLUNG
+│   │   │   ├── Sommerbetrieb             ❓
+│   │   │   ├── Vorlaufanteil Heizkreis ->❓
+│   │   │   ├── Maximale Rücklauftemp ->  ❓
+│   │   │   ├── Maximale Vorlauftemp ->   ❓
+│   │   │   ├── Festwertbetrieb ->        ❓
+│   │   │   └── Frostschutz ->            📄 (= Anlagenfrost)
+│   │   ├── Pumpenzyklen
+│   │   └── ELEKTRISCHE NACHERWÄRMUNG     (Bivalenztemp/Einsatzgrenze HZG, Stufen, Verzögerung)  ❓
+│   ├── WARMWASSER
+│   │   ├── WARMWASSERTEMPERATUREN        (Komfort-/ECO-Temperatur ->)  ❓
+│   │   ├── GRUNDEINSTELLUNG              (Betrieb, Hysterese, Stufen, Lernfkt., WW-Leistung, Max-Vorlauf, Antilegionellen)  ❓
+│   │   ├── ELEKTRISCHE NACHERWÄRMUNG     (Bivalenztemp/Einsatzgrenze WW ->)  ❓
+│   │   └── ZIRKULATION                   (Anforderung ->)  ❓
+│   └── KÜHLEN
+│       ├── KÜHLKREIS 1
+│       │   ├── Kühlkreis ->              ✏️  (0x4F08)
+│       │   ├── Raumsolltemperatur ->     ✏️  (0x4F04)
+│       │   ├── Kühlart (Gebläse/Fläche)  ✏️  (0x4F05)
+│       │   ├── Steigung Kühlkurve ->     ✏️  (0x4FB9)
+│       │   └── Starttemperatur ->        ✏️  (0x4FBE)
+│       └── GRUNDEINSTELLUNG
+│           ├── Leistung ->               📄 (0x7A40 lesend; Schreibmodul offen)
+│           └── Hysterese Vorlauftemp ->  ✏️  (0x4F00)
+└── INBETRIEBNAHME
 ```
+
+**Beobachtungen zum Abgleich:**
+- **Größte „geschenkte" Zuwächse (nur lesen, Risiko 0, Indizes schon bekannt):**
+  Laufzeit (6), Starts (1), Prozessdaten-Vorlauf `0x01D6`, Energiebilanz-Rest
+  (13–24-M-Wärme/Strom + Effizienz). Fehlen nur als Sensor-Blöcke im Manifest.
+- **Taupunkttemperatur (FET1)** noch ohne Index – der für die Kühl-Sicherheit
+  (Kondensat/Estrich) interessanteste offene Wert.
+- **KÜHLEN-Schalter `0x4F07`** ist in dieser Abschrift nicht eindeutig zu
+  verorten; „Kühlkreis -> EIN" unter Kühlkreis 1 ist `0x4F08`. Display-Name von
+  `0x4F07` bleibt offen.
+- **Betriebsart-Auswahl** taucht in der Abschrift nicht auf (vermutlich unter
+  PROGRAMM) – Entity existiert dennoch (`0x4F1B`).
 
 ## Noch offene Werte (Kandidaten vorhanden, nicht final bestätigt)
 

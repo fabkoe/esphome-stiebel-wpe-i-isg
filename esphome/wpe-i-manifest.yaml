@@ -202,12 +202,14 @@ sensor:
 
   - platform: template
     name: "Steigung Heizkurve"
+    entity_category: diagnostic
     id: steigung_heizkurve
     accuracy_decimals: 2
     state_class: measurement
 
   - platform: template
     name: "Komforttemperatur Heizkreis"
+    entity_category: diagnostic
     id: komforttemperatur_hk
     unit_of_measurement: "°C"
     device_class: temperature
@@ -216,6 +218,7 @@ sensor:
 
   - platform: template
     name: "Eco-Temperatur Heizkreis"
+    entity_category: diagnostic
     id: ecotemperatur_hk
     unit_of_measurement: "°C"
     device_class: temperature
@@ -227,6 +230,7 @@ sensor:
   # 10-30 degC = Temperatur, siehe dort).
   - platform: template
     name: "Minimal Temperatur Heizkreis"
+    entity_category: diagnostic
     id: min_temp_hk
     unit_of_measurement: "°C"
     device_class: temperature
@@ -235,6 +239,7 @@ sensor:
 
   - platform: template
     name: "Raumeinfluss Heizkreis"
+    entity_category: diagnostic
     id: raumeinfluss_hk
     unit_of_measurement: "%"
     state_class: measurement
@@ -245,6 +250,7 @@ sensor:
   # auf eigenen Modulen (0x180/0x480). Nur-Lese-Sensoren, kein Schreiben.
   - platform: template
     name: "Raumsolltemperatur Kuehlen"
+    entity_category: diagnostic
     id: raumsolltemp_kuehlen
     unit_of_measurement: "°C"
     device_class: temperature
@@ -253,12 +259,14 @@ sensor:
 
   - platform: template
     name: "Steigung Kuehlkurve"
+    entity_category: diagnostic
     id: steigung_kuehlkurve
     accuracy_decimals: 2
     state_class: measurement
 
   - platform: template
     name: "Starttemperatur Kuehlen"
+    entity_category: diagnostic
     id: starttemp_kuehlen
     unit_of_measurement: "°C"
     device_class: temperature
@@ -267,6 +275,7 @@ sensor:
 
   - platform: template
     name: "Hysterese Vorlauf Kuehlen"
+    entity_category: diagnostic
     id: hysterese_vorlauf_kuehlen
     unit_of_measurement: "K"
     state_class: measurement
@@ -274,6 +283,7 @@ sensor:
 
   - platform: template
     name: "Leistung Kuehlen"
+    entity_category: diagnostic
     id: leistung_kuehlen
     unit_of_measurement: "kW"
     device_class: power
@@ -287,6 +297,7 @@ sensor:
   # 2WE = zweiter Waermeerzeuger = elektrische Nacherwaermung (NHZ).
   - platform: template
     name: "Waermemenge Heizen VD"
+    entity_category: diagnostic
     id: wm_heiz_vd
     unit_of_measurement: "kWh"
     device_class: energy
@@ -295,6 +306,7 @@ sensor:
 
   - platform: template
     name: "Waermemenge Warmwasser VD"
+    entity_category: diagnostic
     id: wm_ww_vd
     unit_of_measurement: "kWh"
     device_class: energy
@@ -303,6 +315,7 @@ sensor:
 
   - platform: template
     name: "Waermemenge Heizen NHZ"
+    entity_category: diagnostic
     id: wm_heiz_nhz
     unit_of_measurement: "kWh"
     device_class: energy
@@ -311,6 +324,7 @@ sensor:
 
   - platform: template
     name: "Waermemenge Warmwasser NHZ"
+    entity_category: diagnostic
     id: wm_ww_nhz
     unit_of_measurement: "kWh"
     device_class: energy
@@ -319,6 +333,7 @@ sensor:
 
   - platform: template
     name: "Stromaufnahme Heizen VD"
+    entity_category: diagnostic
     id: el_heiz_vd
     unit_of_measurement: "kWh"
     device_class: energy
@@ -327,6 +342,7 @@ sensor:
 
   - platform: template
     name: "Stromaufnahme Warmwasser VD"
+    entity_category: diagnostic
     id: el_ww_vd
     unit_of_measurement: "kWh"
     device_class: energy
@@ -339,6 +355,7 @@ sensor:
   # (Info->Energiebilanz->Gesamtsystem). COP wird HA-seitig berechnet.
   - platform: template
     name: "Gesamt Waermemenge Heizen 12M"
+    entity_category: diagnostic
     id: gs_wm_heiz
     unit_of_measurement: "kWh"
     device_class: energy
@@ -347,6 +364,7 @@ sensor:
 
   - platform: template
     name: "Gesamt Waermemenge Warmwasser 12M"
+    entity_category: diagnostic
     id: gs_wm_ww
     unit_of_measurement: "kWh"
     device_class: energy
@@ -355,6 +373,7 @@ sensor:
 
   - platform: template
     name: "Gesamt Stromverbrauch Heizen 12M"
+    entity_category: diagnostic
     id: gs_strom_heiz
     unit_of_measurement: "kWh"
     device_class: energy
@@ -363,6 +382,7 @@ sensor:
 
   - platform: template
     name: "Gesamt Stromverbrauch Warmwasser 12M"
+    entity_category: diagnostic
     id: gs_strom_ww
     unit_of_measurement: "kWh"
     device_class: energy
@@ -373,6 +393,7 @@ sensor:
   # Kaeltekreis-Temperaturen
   - platform: template
     name: "Verdampfertemperatur"
+    entity_category: diagnostic
     id: verdampfertemperatur
     unit_of_measurement: "°C"
     device_class: temperature
@@ -381,6 +402,7 @@ sensor:
 
   - platform: template
     name: "Verdichtereintrittstemperatur"
+    entity_category: diagnostic
     id: verdichtereintrittstemp
     unit_of_measurement: "°C"
     device_class: temperature
@@ -389,6 +411,7 @@ sensor:
 
   - platform: template
     name: "Heissgastemperatur"
+    entity_category: diagnostic
     id: heissgastemperatur
     unit_of_measurement: "°C"
     device_class: temperature
@@ -397,6 +420,7 @@ sensor:
 
   - platform: template
     name: "Verfluessigertemperatur"
+    entity_category: diagnostic
     id: verfluessigertemperatur
     unit_of_measurement: "°C"
     device_class: temperature
@@ -405,6 +429,7 @@ sensor:
 
   - platform: template
     name: "Oelsumpftemperatur"
+    entity_category: diagnostic
     id: oelsumpftemperatur
     unit_of_measurement: "°C"
     device_class: temperature
@@ -414,6 +439,7 @@ sensor:
   # Kaeltekreis-Druecke (/100 bar)
   - platform: template
     name: "Druck Niederdruck"
+    entity_category: diagnostic
     id: druck_niederdruck
     unit_of_measurement: "bar"
     device_class: pressure
@@ -422,6 +448,7 @@ sensor:
 
   - platform: template
     name: "Druck Hochdruck"
+    entity_category: diagnostic
     id: druck_hochdruck
     unit_of_measurement: "bar"
     device_class: pressure
@@ -430,6 +457,7 @@ sensor:
 
   - platform: template
     name: "Wasservolumenstrom"
+    entity_category: diagnostic
     id: wp_volumenstrom
     unit_of_measurement: "L/min"
     device_class: volume_flow_rate
@@ -439,6 +467,7 @@ sensor:
   # Inverter / Verdichter
   - platform: template
     name: "Strom Inverter"
+    entity_category: diagnostic
     id: strom_inverter
     unit_of_measurement: "A"
     device_class: current
@@ -447,6 +476,7 @@ sensor:
 
   - platform: template
     name: "Spannung Inverter"
+    entity_category: diagnostic
     id: spannung_inverter
     unit_of_measurement: "V"
     device_class: voltage
@@ -456,6 +486,7 @@ sensor:
   # Ist/Soll-Zuordnung 0x06EB/0x06EC noch nicht verifiziert (siehe docs)
   - platform: template
     name: "Istdrehzahl Verdichter"
+    entity_category: diagnostic
     id: istdrehzahl_verdichter
     unit_of_measurement: "Hz"
     device_class: frequency
@@ -464,6 +495,7 @@ sensor:
 
   - platform: template
     name: "Solldrehzahl Verdichter"
+    entity_category: diagnostic
     id: solldrehzahl_verdichter
     unit_of_measurement: "Hz"
     device_class: frequency
@@ -473,6 +505,7 @@ sensor:
   # Waermequelle (Sole)
   - platform: template
     name: "Waermequelle Vorlauftemperatur"
+    entity_category: diagnostic
     id: wq_vorlauf
     unit_of_measurement: "°C"
     device_class: temperature
@@ -481,6 +514,7 @@ sensor:
 
   - platform: template
     name: "Waermequelle Ruecklauftemperatur"
+    entity_category: diagnostic
     id: wq_ruecklauf
     unit_of_measurement: "°C"
     device_class: temperature
@@ -489,6 +523,7 @@ sensor:
 
   - platform: template
     name: "Waermequellendruck"
+    entity_category: diagnostic
     id: wq_druck
     unit_of_measurement: "bar"
     device_class: pressure
@@ -497,6 +532,7 @@ sensor:
 
   - platform: template
     name: "Leistung Waermequellenpumpe"
+    entity_category: diagnostic
     id: wq_pumpenleistung
     unit_of_measurement: "%"
     state_class: measurement
@@ -505,17 +541,21 @@ sensor:
 text_sensor:
   - platform: template
     name: "Betriebsart"
+    entity_category: diagnostic
     id: betriebsart_text
 
   # --- Kuehlen: Schalter/Enums (30.07.2026 wert-bestaetigt) ---
   - platform: template
     name: "Kuehlen"
+    entity_category: diagnostic
     id: kuehlen_status
   - platform: template
     name: "Kuehlkreis 1"
+    entity_category: diagnostic
     id: kuehlkreis_status
   - platform: template
     name: "Kuehlart"
+    entity_category: diagnostic
     id: kuehlart_text
 
 canbus:
@@ -1049,6 +1089,7 @@ button:
 select:
   - platform: template
     name: "Betriebsart setzen"
+    entity_category: config
     id: betriebsart_select
     optimistic: false
     options:
@@ -1088,6 +1129,7 @@ select:
   # =======================================================================
   - platform: template
     name: "Kuehlkreis 1 setzen"
+    entity_category: config
     id: kuehlkreis_select
     optimistic: false
     options:
@@ -1110,6 +1152,7 @@ select:
 
   - platform: template
     name: "Kuehlart setzen"
+    entity_category: config
     id: kuehlart_select
     optimistic: false
     options:
@@ -1141,6 +1184,7 @@ select:
   # =======================================================================
   - platform: template
     name: "Kuehlen setzen"
+    entity_category: config
     id: kuehlen_select
     optimistic: false
     options:
@@ -1179,6 +1223,7 @@ select:
 number:
   - platform: template
     name: "Steigung Heizkurve setzen"
+    entity_category: config
     id: steigung_heizkurve_set
     optimistic: false
     min_value: 0.1
@@ -1216,6 +1261,7 @@ number:
   # =======================================================================
   - platform: template
     name: "Komforttemperatur Heizkreis setzen"
+    entity_category: config
     id: komforttemperatur_hk_set
     optimistic: false
     min_value: 10.0
@@ -1244,6 +1290,7 @@ number:
 
   - platform: template
     name: "Eco-Temperatur Heizkreis setzen"
+    entity_category: config
     id: ecotemperatur_hk_set
     optimistic: false
     min_value: 5.0
@@ -1276,6 +1323,7 @@ number:
   # ungueltige 0,1-9,9 degC gesendet wird.
   - platform: template
     name: "Minimal Temperatur Heizkreis setzen"
+    entity_category: config
     id: min_temp_hk_set
     optimistic: false
     min_value: 0
@@ -1314,6 +1362,7 @@ number:
   # gespeichert, im Log geraeteverifiziert) -> step 5.
   - platform: template
     name: "Raumeinfluss Heizkreis setzen"
+    entity_category: config
     id: raumeinfluss_hk_set
     optimistic: false
     min_value: 0
@@ -1357,6 +1406,7 @@ number:
   # =======================================================================
   - platform: template
     name: "Raumsolltemperatur Kuehlen setzen"
+    entity_category: config
     id: raumsolltemp_kuehlen_set
     optimistic: false
     min_value: 20.0
@@ -1383,6 +1433,7 @@ number:
 
   - platform: template
     name: "Steigung Kuehlkurve setzen"
+    entity_category: config
     id: steigung_kuehlkurve_set
     optimistic: false
     min_value: 0.1
@@ -1408,6 +1459,7 @@ number:
 
   - platform: template
     name: "Starttemperatur Kuehlen setzen"
+    entity_category: config
     id: starttemp_kuehlen_set
     optimistic: false
     min_value: 15.0
@@ -1441,6 +1493,7 @@ number:
   # =======================================================================
   - platform: template
     name: "Hysterese Vorlauf Kuehlen setzen"
+    entity_category: config
     id: hysterese_vorlauf_kuehlen_set
     optimistic: false
     min_value: 4.0
