@@ -248,18 +248,9 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
 
-  # Minimal-Temperatur HK (0x4EA7): "Aus" (0x9000) wird hier als NaN/unavailable
-  # veroeffentlicht. Gesetzt wird ueber den Schieber "... setzen" (0 = Aus,
-  # 10-30 degC = Temperatur, siehe dort).
-  - platform: template
-    name: "Minimal Temperatur Heizkreis"
-    entity_category: diagnostic
-    id: min_temp_hk
-    unit_of_measurement: "°C"
-    device_class: temperature
-    state_class: measurement
-    accuracy_decimals: 1
-
+  # Minimal-Temperatur HK (0x4EA7) wird als Text-Sensor dargestellt
+  # ("Aus" bzw. "18.0 °C"), siehe text_sensor-Block. Gesetzt ueber den
+  # Schieber "Minimal Temperatur Heizkreis setzen" (0 = Aus).
   - platform: template
     name: "Raumeinfluss Heizkreis"
     entity_category: diagnostic
@@ -709,6 +700,13 @@ text_sensor:
     entity_category: diagnostic
     id: kuehlart_text
 
+  # Minimal-Temperatur HK (0x4EA7) als Text: "Aus" (Sonderwert 0x9000)
+  # oder die Temperatur ("18.0 °C"). Gesetzt ueber den gleichnamigen Schieber.
+  - platform: template
+    name: "Minimal Temperatur Heizkreis"
+    entity_category: diagnostic
+    id: min_temp_hk_txt
+
 canbus:
   - platform: esp32_can
     id: my_canbus
@@ -838,10 +836,12 @@ canbus:
               // Lesesensor -> NaN/unavailable, Schieber -> 0 (= "Aus"-Position).
               if (idx == 0x4EA7 && (can_id == 0x100 || can_id == 0x601)) {
                 if (val == -28672) {
-                  id(min_temp_hk).publish_state(NAN);
+                  id(min_temp_hk_txt).publish_state("Aus");
                   id(min_temp_hk_set).publish_state(0);
                 } else {
-                  id(min_temp_hk).publish_state(val / 10.0f);
+                  char buf[16];
+                  snprintf(buf, sizeof(buf), "%.1f °C", val / 10.0f);
+                  id(min_temp_hk_txt).publish_state(buf);
                   id(min_temp_hk_set).publish_state(val / 10.0f);
                 }
               }
