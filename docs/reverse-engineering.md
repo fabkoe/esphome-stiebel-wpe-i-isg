@@ -254,11 +254,13 @@ HAUPTMENÜ
 ```
 
 **Beobachtungen zum Abgleich:**
-- **Nur-Lese-Zuwächse (31.07.2026) ins Manifest gebaut, Flash-Verifikation
-  ausstehend:** Laufzeit (6), Starts (1), Prozessdaten-Vorlauf `0x01D6`,
-  Energiebilanz-Rest (13–24-M-Wärme/Strom + Effizienz `0x501E/0x5022/0x503A`).
-  Indizes aus früheren Sessions display-bestätigt; Sensoren `entity_category
-  diagnostic`, Poll über 0x680 (IWS `A1 14` bzw. Manager `91 00`).
+- **Nur-Lese-Zuwächse (31.07.2026) ins Manifest + am Gerät bestätigt**
+  (`logs/readsensors-verify.log`): Laufzeit (6), Starts (1), Prozessdaten-Vorlauf
+  `0x01D6`, Energiebilanz-Rest (13–24-M-Wärme/Strom + Effizienz
+  `0x501E/0x5022/0x503A`). Alle 14 Sensoren publishen digit-genau gegen die
+  bekannten Display-Werte (z. B. VD Heizen 5125 h, Starts 8605, Wärme Heizen
+  13–24M 7502 kWh, Effizienz 7,56). Sensoren `entity_category diagnostic`, Poll
+  über 0x680 (IWS `A1 14` bzw. Manager `91 00`).
 - **Taupunkttemperatur (FET1)** noch ohne Index – der für die Kühl-Sicherheit
   (Kondensat/Estrich) interessanteste offene Wert.
 - **KÜHLEN-Schalter `0x4F07`** ist in dieser Abschrift nicht eindeutig zu
@@ -717,8 +719,9 @@ einzelner ×100-Wert. **11 Werte digit-genau gegen die Display-Fotos bestätigt.
 | Effizienz Heizen (÷100) | `0x501E` | – | 7,56 |
 | Effizienz WW (÷100) | `0x5022` | – | 4,32 |
 
-**Zeitfenster 13–24 M** (bestätigt, seit 31.07.2026 als Sensoren im Manifest –
-Flash-Verifikation ausstehend):
+**Zeitfenster 13–24 M** (seit 31.07.2026 als Sensoren im Manifest, am Gerät
+bestätigt – `logs/readsensors-verify.log`, digit-genau: 7502/3997/1025/956 kWh,
+Effizienz 4,18):
 
 | Wert | MWh-idx | kWh-idx | Display |
 |---|---|---|---|
@@ -850,10 +853,10 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
   - [x] Request-Header für 0x500-Ziel über 0x680 ermittelt (`A1 00 FA …`)
   - [x] **Manifest-Fix umgesetzt: Energie-Summenpolls von 0x500 auf 0x514 (IWS)** – Header `A1 14`, Decode `0x514`. In HA gerätebestätigt: Wärme Heizen 15.216, NHZ Heizen 3.214, NHZ WW 367, El Heizen 2.033 kWh = Display-Werte
   - [x] Gesamtsystem-Screen zugeordnet und im Manifest (4 Sensoren, 1–12M, gerätebestätigt)
-  - [x] **13–24M-Fenster + Effizienz ins Manifest** (31.07.) – 4 Energie-Sensoren (`0x502C/0x5030/0x5032/0x5036`) + 3 Effizienz (`0x501E/0x5022/0x503A`), 300s-Poll `91 00`. Flash-Verifikation ausstehend.
+  - [x] **13–24M-Fenster + Effizienz ins Manifest + gerätebestätigt** (31.07., `logs/readsensors-verify.log`) – 4 Energie-Sensoren (`0x502C/0x5030/0x5032/0x5036`) + 3 Effizienz (`0x501E/0x5022/0x503A`), 300s-Poll `91 00`, digit-genau gegen Display.
   - [ ] Optional: Tageszähler-Sensoren (`…_TAG_*` auf 0x514) ergänzen, falls Tageswerte gewünscht
 - [x] **Laufzeiten + Starts komplett bestätigt** (29.07.) – `0x4EFB`/`0x4EFD` (VD), `0x0259`/`0x025A` (NHZ1/2), `0x0805` (NHZ1/2 gemeinsam), `0x4F9A` (Passivkühlung), `0x4EF0`/`0x4EF1` (Starts, Split). Siehe Abschnitt „Laufzeiten & Starts"
-  - [x] **Laufzeit-/Start-Sensoren ins Manifest** (31.07.) – 6 Laufzeiten + Verdichter-Starts (Split), `entity_category diagnostic`, IWS-Poll `A1 14`. Plus Prozessdaten-Vorlauf `0x01D6`. Flash-Verifikation ausstehend.
+  - [x] **Laufzeit-/Start-Sensoren ins Manifest + gerätebestätigt** (31.07., `logs/readsensors-verify.log`) – 6 Laufzeiten + Verdichter-Starts (Split 8×1000+605=8605), `entity_category diagnostic`, IWS-Poll `A1 14`. Plus Prozessdaten-Vorlauf `0x01D6`. Alle publishen digit-genau.
 - [ ] Mischermodul-Wert (`0x4EB4` auf 0x601, ~19,1–19,2°C) einer konkreten Bedeutung zuordnen (vermutlich Vorlauf HK2)
 - [x] `0x0074` geklärt = **EVU_SPERRE_AKTIV** (Standard-Elster, val=1=aktiv; ändert sich nicht mit Betriebsart – konsistent)
   - [ ] `0x4EB3` auf 0x401/0x100 (val=1) noch offen
