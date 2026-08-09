@@ -7,7 +7,7 @@ Stand: 29.07.2026
 - Gerät: **Stiebel Eltron WPE-I 06 HKW 230 Premium** (Sole-Wasser-Wärmepumpe, Inverter, Kühlfunktion)
 - Kein ISG vorhanden → kein Modbus/Web-Zugriff möglich
 - Ansatz: direktes Mithören/Anfragen auf dem internen **CAN-Bus** (Elster/Kromschröder-Protokoll)
-- Hardware: Waveshare ESP32-S3 Industrial Board mit integriertem CAN-Transceiver (SN65HVD230), angeschlossen an Klemme **X1.18 (CAN B – FET/ISG-Anschluss)** des WPM4-Reglers
+- Hardware: Waveshare ESP32-S3-RS485-CAN mit integriertem CAN-Transceiver (TJA1051T/3, galv. getrennt), angeschlossen an Klemme **X1.18 (CAN B – FET/ISG-Anschluss)** des WPM4-Reglers (Board-Details: `docs/hardware.md`)
 - Software: ESPHome, Firmware `wpe-i-manifest.yaml`
 
 ## Protokoll-Grundlagen

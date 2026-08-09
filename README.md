@@ -29,8 +29,9 @@ Meldungslisten-Zähler
 
 ## Hardware
 
-- Waveshare **ESP32-S3 Industrial Board** mit integriertem, isoliertem
-  CAN-Transceiver (SN65HVD230)
+- Waveshare **ESP32-S3-RS485-CAN** (Industrieboard) mit integriertem,
+  galvanisch getrenntem CAN-Transceiver (TJA1051T/3) – Details:
+  [`docs/hardware.md`](docs/hardware.md)
 - Anschluss an Klemme **X1.18** (CAN B, FET/ISG-Anschluss) des
   WPM4-Reglers – H → CAN-H, L → CAN-L
 - Terminierungs-Jumper **offen** lassen (Abgriff, kein Busende)

@@ -35,6 +35,9 @@ offizielle Schaltbild liegt lokal unter
 Die CAN-Pins **GPIO15/GPIO16** decken sich mit der Manifest-Konfiguration
 (`esphome/wpe-i-manifest.yaml`) und dem README.
 
+> Board vom Nutzer als das verbaute bestätigt (09.08.2026). Frühere Angabe
+> `SN65HVD230` in README/Doku war falsch und wurde auf `TJA1051T/3` korrigiert.
+
 ## Anschluss an die Wärmepumpe
 
 Siehe README (Abschnitt „Hardware"): Klemme **X1.18** (CAN B, FET/ISG-Anschluss)
@@ -52,8 +55,3 @@ hängt als Abgriff am Bus, nicht als Busende. Bitrate **50 kbps**.
 Wenn der COM-Port fehlt oder das Flashen fehlschlägt: **BOOT gedrückt halten,
 gleichzeitig RESET tippen, BOOT loslassen** (Bootloader-Modus). Deckt sich mit
 dem Workflow in CLAUDE.md.
-
-> Hinweis (Widerspruch zu prüfen): README/CLAUDE.md nennen als CAN-Transceiver
-> `SN65HVD230`. Das offizielle Schaltbild dieses Boards zeigt jedoch
-> `TJA1051T/3` mit galvanischer Trennung. Vor einer README-Korrektur am realen
-> Board gegenchecken (Aufdruck/Bestückung).
