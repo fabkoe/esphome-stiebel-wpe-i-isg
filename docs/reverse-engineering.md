@@ -772,8 +772,14 @@ Text-Sensor („Aus").
 - [ ] Programmbetrieb (=2) verifizieren. **Not-Betrieb (=6) NICHT aktiv testen.**
 
 **C – Neue RE-Leseziele (aus Menü-Coverage ❓)**
+- [ ] **BETRIEBSSTATUS-Bitfeld** (ISG Reg 2501): Elster-Index suchen, der die
+  Zustände bitcodiert trägt – ein Wert liefert dann alles auf einmal. Bit-Spec
+  aus der ISG-Doku: B4 WP-Heizbetrieb, B5 WP-WW-Betrieb, B6 Verdichter läuft,
+  B7 Sommerbetrieb, B8 Kühlbetrieb, B9 Abtauen, B10/B11 Silentmode. Hoher Nutzen.
 - [ ] **Taupunkttemperatur (FET1)** – Index suchen; relevant fürs Kühlen
-  (Kondensat/Estrich).
+  (Kondensat/Estrich). (ISG Reg 506; WPM-G führt „Raum Taupunkt-Temperatur".)
+- [ ] **Weitere Messwerte lt. WPM-G-Doku, die uns fehlen:** Überhitzung/
+  Unterkühlung, Strom/Spannung L1/L2/L3, gemittelte Außentemperatur.
 - [ ] **Kühlen-Live-Werte** (Info→Anlage→Kühlen): Ist/Soll, KK1 Ist/Soll.
 - [ ] **Heizung-Unterwerte**: HK1 Ist/Soll, Vorlauf NHZ, Festwertsoll,
   Heizungsdruck, Volumenstrom, Anlagenfrost.
@@ -798,6 +804,69 @@ Text-Sensor („Aus").
 - [ ] Niveau/Komfort-Temperatur der Heizkurve (eigener Index) auslesen.
 - [ ] Manifest ggf. PR-fähig aufbereiten (OneESP32) – optional, eigenes
   Produktivprojekt bleibt Basis.
+
+**F – Modbus-TCP-Kompatibilitätsinterface (ISG-Emulation)** *(Idee, Stand
+09.08.2026 – noch nicht entschieden)*
+
+Ziel/Idee des Nutzers: **eine Modbus-over-IP-Schnittstelle bereitstellen, die
+die Registertabelle des Stiebel ISG nachbildet**, damit Projekte/Integrationen,
+die **bereits das ISG unterstützen** (HA „Stiebel Eltron ISG", generische
+Modbus-TCP-Clients), unser nachgebautes Interface **ohne Anpassung** nutzen
+können. Der ESP tritt also als ISG-Ersatz im Netz auf (Port 502, Slave-ID 1).
+
+Grundlage: `Modbus Bedienungsanleitung.pdf` (ISG Modbus-TCP/IP-Doku, 208 S.,
+im Projekt-Root). Für uns maßgeblich ist die Spalte **„WPMsystem"** (Abschnitt
+6/8), **nicht** „WPM G" (Abschnitt 9). Beleg: `REGLERKENNUNG` (Reg 5002) =
+**449** für WPMsystem, unser Regler meldet SW **„449-10"**.
+
+Abgleich Doku ↔ unser RE-Stand (09.08.2026):
+- **Skalierung passt 1:1:** Modbus-Typ 2 = signed ×0.1 (Temp), Typ 7 = signed
+  ×0.01 (Heizkurve), Typ 6 = uint ×1, Typ 8 = uint8; „nicht verfügbar" =
+  `0x8000` – identisch zu unserer CAN-Konvention.
+- **Bereits abgedeckt** (ISG-Kernregister): 507 Außentemp (0x000C), 522/523 WW
+  Ist/Soll (0x000E/0x0013), 516 Rücklauf (0x0016), 513 Vorlauf WP (0xFDF3),
+  501/505 Raum Ist/Feuchte (0x4EC7/0x4EC8), 1501 Betriebsart (0x4F1B),
+  1502/1503 Komfort/Eco HK1 (0x4EB8/0x4EB9), 1504 Steigung (0x4F2B), 1516/1515
+  Kühlen Raumsoll/Hysterese (0x4F04/0x4F00), 544/547/545 Heißgas/HD/ND
+  (0x0265/0x07A6/0x07A7), 3502/3505/3512/3515 Energie-Summen, 3517/3518
+  Laufzeiten.
+- **Wir haben MEHR als das ISG** (kein Modbus-Äquivalent, bleibt native API):
+  Verdichter-Ist/Solldrehzahl, Inverter U/I, Verdampfer-/Verflüssiger-/
+  Ölsumpf-Temp, WQ-Kreis-Details, 12-/24-Monats-Energiebilanz + COP, VD-Starts.
+- **Noch offene ISG-Register** (= RE-Lücken, überschneidet sich mit C):
+  506 Taupunkt, **2501 Betriebsstatus (bitcodiert)**, 2502 EVU, 2504/2507
+  Fehlerstatus/-nummer, 508/510 HK1 Vorlauf Ist/Soll, 517 Festwertsoll,
+  518/519 Puffer, 520 Heizungsdruck, 521 Volumenstrom, 533/534 Einsatzgrenzen,
+  1509/1513 Bivalenz, 1510/1511 Komfort/Eco WW, 1512 WW-Stufen, SG-Ready
+  (4001-4003/5001).
+
+Offene Entscheidungen (bewusst noch nicht getroffen):
+- [ ] **Ort:** ESP32-seitiger Modbus-TCP-Server (Custom/External Component –
+  ESPHome hat **keinen** eingebauten Modbus-*Slave*, nur `modbus_controller`
+  als Client) **vs.** Host-Bridge (pymodbus liest native API und spiegelt).
+- [ ] **Scope v1:** read-only zuerst (nur FC03/04, kein Geräterisiko);
+  Schreiben (FC06/16) erst später register-für-register mit bestätigten
+  Formaten + Nutzer-OK (Sicherheitsregel 1).
+- [ ] **Betriebsart-Enum: stimmt 1:1 mit ISG überein** – unser select schreibt
+  Bereitschaft=1, Programm=2, Komfort=3, Eco=4, WW=5 = exakt die ISG-Codierung
+  von Reg 1501, **keine Ummappung nötig**. ⚠️ ABER: ISG-Doku sagt **Notbetrieb=0**,
+  unsere Sicherheitsregel sagt **Betriebsart 6** – Widerspruch vor jedem
+  Schreibpfad am Gerät klären (select blockt `v==0` bereits).
+- [ ] **Gefahren-Register auf einer Write-Bridge NIE freigeben:** Reg 1520 RESET
+  (Werks-Reset!), 1521 RESTART, Notbetrieb.
+- [ ] Als Vorstufe ggf. vollständige Mapping-Tabelle Modbus↔Elster in docs/.
+
+Weitere Erkenntnisse aus der ISG-Doku (09.08.2026):
+- **`0x9000` = „AUS" ist generelles Stiebel-Muster** (Doku-Fußnote zu Reg 1508
+  Festwertbetrieb: „AUS über 9000Hex"). Deckt sich mit unserem `0x4EA7`
+  (Minimal-Temp „Aus"). → andere „Aus-oder-Wert"-Parameter nutzen vermutlich
+  denselben Sentinel (RE-Abkürzer).
+- **Ersatzwert `0x8000` (32768) = „nicht verfügbar"** (= unsere `-32768`-
+  Konvention). Für die Emulation: nicht vorhandene Werte als `0x8000` ausgeben.
+- **Unsere Schreib-Grenzen liegen innerhalb der Doku-Ranges** (Gegencheck ok):
+  Komfort/Eco HK 5-30 °C, Steigung 0-3, Kühlen-Raumsoll 20-30, Hysterese 1-5 K.
+  Doku-Schrittweite (1 °C) ist gröber als unsere gerätebestätigte 0,1-°C-CAN-
+  Granularität (Eco 20,1 → Echo `00 C9`) – unser CAN-Zugriff ist feiner als ISG.
 
 ---
 
