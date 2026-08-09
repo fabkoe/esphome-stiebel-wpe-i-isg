@@ -1,15 +1,14 @@
 # Hardware: Waveshare ESP32-S3-RS485-CAN
 
 Das im Projekt verwendete Board. Diese Datei bündelt die Geräte-Doku; das
-offizielle Schaltbild liegt lokal unter
-[`manuals/Waveshare_ESP32-S3-RS485-CAN_Schematic.pdf`](manuals/Waveshare_ESP32-S3-RS485-CAN_Schematic.pdf).
+offizielle Schaltbild ist bei Waveshare verlinkt (s. Quellen), aus
+Urheberrechtsgründen nicht im Repo gespiegelt.
 
 ## Quellen (offiziell)
 
 - **Produktseite:** `https://www.waveshare.com/esp32-s3-rs485-can.htm` (SKU 32154)
 - **Wiki (Doku/Demos/Ressourcen):** `https://www.waveshare.com/wiki/ESP32-S3-RS485-CAN`
 - **Schaltbild:** `https://files.waveshare.com/wiki/ESP32-S3-RS485-CAN/ESP32-S3-RS485-CAN-Schematic.pdf`
-  (lokal gesichert, s.o.)
 - ESP32-S3 Datenblatt + Technical Reference Manual: über die Wiki-Sektion
   „Resources → Datasheets" (Espressif).
 

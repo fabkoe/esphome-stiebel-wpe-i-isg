@@ -36,9 +36,10 @@ Schreibformate, keine Fremd-Merge-Abhängigkeit).
   WPM4-Displays mit Coverage-Legende (aus der Wissensbasis ausgelagert).
 - `docs/hardware.md` – das verbaute Board (Waveshare ESP32-S3-RS485-CAN):
   CAN-Pinout, Transceiver, Terminierung, offizielle Links.
-- `docs/manuals/` – lokal gesicherte offizielle Handbücher (WPE-I-Bedienung/
-  Installation, ISG-Software-Erweiterung, Board-Schaltbild); die ISG-Modbus-Doku
-  liegt als `Modbus Bedienungsanleitung.pdf` im Projekt-Root.
+- **Offizielle Handbücher** (WPE-I-Bedienung/Installation, ISG-Software-
+  Erweiterung, ISG-Modbus-TCP/IP, Board-Schaltbild) sind aus Urheberrechts-
+  gründen **nicht im Repo**, sondern in `docs/reverse-engineering.md`
+  (Abschnitt „Offizielle Handbücher") **extern verlinkt**.
 - `archive/wpe-can-sniffer-v1.yaml` / `-v2.yaml` – historische Sniffer
   (MQTT- bzw. ESPHome-Log-basiert), nur Referenz, kein Produktivstand.
 - `logs/` ist **nicht im Repo** (per `.gitignore` `*.log` ausgeschlossen).
