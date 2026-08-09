@@ -63,7 +63,8 @@ esphome/
 docs/
   reverse-engineering.md    # Protokoll-Doku, Wertetabellen, TODOs
   wpm4-menue.md             # Menübaum des WPM4-Displays (Coverage-Legende)
-  manuals/                  # lokal gesicherte offizielle Handbücher (PDF)
+  hardware.md               # Board Waveshare ESP32-S3-RS485-CAN (Pinout, Links)
+  manuals/                  # lokal gesicherte offizielle Handbücher + Schaltbild
 archive/
   wpe-can-sniffer-v1.yaml   # historisch: erster Sniffer (MQTT-basiert)
   wpe-can-sniffer-v2.yaml   # historisch: Sniffer über ESPHome-Logs
