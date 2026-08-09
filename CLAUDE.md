@@ -22,9 +22,11 @@ Schreibformate, keine Fremd-Merge-Abhängigkeit).
   **Bei jeder neuen Erkenntnis mitpflegen!**
 - `docs/wpm4-menue.md` – vollständiger, geräteabgetippter Menübaum des
   WPM4-Displays mit Coverage-Legende (aus der Wissensbasis ausgelagert).
+- `docs/hardware.md` – das verbaute Board (Waveshare ESP32-S3-RS485-CAN):
+  CAN-Pinout, Transceiver, Terminierung, offizielle Links.
 - `docs/manuals/` – lokal gesicherte offizielle Handbücher (WPE-I-Bedienung/
-  Installation, ISG-Software-Erweiterung); die ISG-Modbus-Doku liegt als
-  `Modbus Bedienungsanleitung.pdf` im Projekt-Root.
+  Installation, ISG-Software-Erweiterung, Board-Schaltbild); die ISG-Modbus-Doku
+  liegt als `Modbus Bedienungsanleitung.pdf` im Projekt-Root.
 - `archive/wpe-can-sniffer-v1.yaml` / `-v2.yaml` – historische Sniffer
   (MQTT- bzw. ESPHome-Log-basiert), nur Referenz, kein Produktivstand.
 - `logs/` ist **nicht im Repo** (per `.gitignore` `*.log` ausgeschlossen).

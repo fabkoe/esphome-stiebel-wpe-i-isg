@@ -29,8 +29,9 @@ Meldungslisten-Zähler
 
 ## Hardware
 
-- Waveshare **ESP32-S3 Industrial Board** mit integriertem, isoliertem
-  CAN-Transceiver (SN65HVD230)
+- Waveshare **ESP32-S3-RS485-CAN** (Industrieboard) mit integriertem,
+  galvanisch getrenntem CAN-Transceiver (TJA1051T/3) – Details:
+  [`docs/hardware.md`](docs/hardware.md)
 - Anschluss an Klemme **X1.18** (CAN B, FET/ISG-Anschluss) des
   WPM4-Reglers – H → CAN-H, L → CAN-L
 - Terminierungs-Jumper **offen** lassen (Abgriff, kein Busende)
@@ -63,7 +64,8 @@ esphome/
 docs/
   reverse-engineering.md    # Protokoll-Doku, Wertetabellen, TODOs
   wpm4-menue.md             # Menübaum des WPM4-Displays (Coverage-Legende)
-  manuals/                  # lokal gesicherte offizielle Handbücher (PDF)
+  hardware.md               # Board Waveshare ESP32-S3-RS485-CAN (Pinout, Links)
+  manuals/                  # lokal gesicherte offizielle Handbücher + Schaltbild
 archive/
   wpe-can-sniffer-v1.yaml   # historisch: erster Sniffer (MQTT-basiert)
   wpe-can-sniffer-v2.yaml   # historisch: Sniffer über ESPHome-Logs
