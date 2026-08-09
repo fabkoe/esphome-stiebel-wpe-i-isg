@@ -18,8 +18,13 @@ Schreibformate, keine Fremd-Merge-Abhängigkeit).
   und speist die Sensor-/Steuer-Entities.
 - `docs/reverse-engineering.md` – **die zentrale Wissensbasis**:
   Protokollformat, alle bestätigten Elster-Indizes mit CAN-IDs und
-  Skalierung, CAN-ID→Modul-Zuordnung, Menüstruktur des WPM4-Displays,
-  PoC-Ergebnisse, offene TODOs. **Bei jeder neuen Erkenntnis mitpflegen!**
+  Skalierung, CAN-ID→Modul-Zuordnung, PoC-Ergebnisse, offene TODOs.
+  **Bei jeder neuen Erkenntnis mitpflegen!**
+- `docs/wpm4-menue.md` – vollständiger, geräteabgetippter Menübaum des
+  WPM4-Displays mit Coverage-Legende (aus der Wissensbasis ausgelagert).
+- `docs/manuals/` – lokal gesicherte offizielle Handbücher (WPE-I-Bedienung/
+  Installation, ISG-Software-Erweiterung); die ISG-Modbus-Doku liegt als
+  `Modbus Bedienungsanleitung.pdf` im Projekt-Root.
 - `archive/wpe-can-sniffer-v1.yaml` / `-v2.yaml` – historische Sniffer
   (MQTT- bzw. ESPHome-Log-basiert), nur Referenz, kein Produktivstand.
 - `logs/` ist **nicht im Repo** (per `.gitignore` `*.log` ausgeschlossen).
