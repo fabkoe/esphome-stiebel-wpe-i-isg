@@ -20,6 +20,50 @@ Schreibformate, keine Fremd-Merge-Abhängigkeit).
   Protokollformat, alle bestätigten Elster-Indizes mit CAN-IDs und
   Skalierung, CAN-ID→Modul-Zuordnung, Menüstruktur des WPM4-Displays,
   PoC-Ergebnisse, offene TODOs. **Bei jeder neuen Erkenntnis mitpflegen!**
+- `archive/wpe-can-sniffer-v1.yaml` / `-v2.yaml` – historische Sniffer
+  (MQTT- bzw. ESPHome-Log-basiert), nur Referenz, kein Produktivstand.
+- `logs/` ist **nicht im Repo** (per `.gitignore` `*.log` ausgeschlossen).
+  Mitschnitte wie `readsensors-verify.log`, in der Doku referenziert,
+  liegen nur lokal beim Nutzer.
+
+## Architektur des Manifests (Big Picture)
+
+Das Manifest ist **eine einzige Datei** mit diesen Top-Level-Sektionen
+(in Lesereihenfolge): `globals` (u.a. `frame_count`) → `sensor`
+(~80 Blöcke) / `text_sensor` → `canbus` mit der `on_frame`-Lambda
+(Decoder) → `interval` (Poller) → `button` / `select` / `number`
+(Schreib-Entities). Der Datenfluss:
+
+1. **Poller (`interval:`, 60 s):** sendet Lese-**Anfragen** über CAN-ID
+   `0x680`, jeweils gestaffelt mit `delay`s.
+2. **Decoder (`on_frame:`):** filtert Lese-Anfragen weg
+   (`(x[0] & 0x0F) == 0x01`, siehe Sicherheits-/Protokollhinweis),
+   zerlegt kurzen/erweiterten Index und Wert, und läuft dann durch eine
+   lange `if (idx == … && can_id == …)`-Kette, die per `publish_state`
+   die passende Entity füttert.
+3. **Schreiben:** `set_action` einer Entity sendet den Write-Frame und
+   nach `~250 ms` **sofort eine Lese-Anfrage (Read-back)** desselben
+   Index – sonst würde HA den neuen Wert erst beim nächsten 60-s-Poll
+   sehen (am Gerät beobachtet).
+
+**Konsequenz für neue Werte:** Ein Lesewert braucht **immer beide
+Seiten** – eine Anfrage im `interval:` **und** eine Decode-Zeile in
+`on_frame:`. Fehlt eine, bleibt die Entity leer.
+
+### Adressierungs-Formel (Header pro Zielmodul)
+
+Der 2-Byte-Header wird **aus der Ziel-CAN-ID abgeleitet** (kein festes
+generisches Präfix):
+
+```
+Header-Byte1 = ((can_id >> 3) & 0xF0) | cmd_nibble   (cmd: 1=lesen, 0=schreiben)
+Header-Byte2 =  can_id & 0x1F
+```
+
+Beispiele: Modul `0x601` → lesen `C1 01` / schreiben `C0 01`;
+Manager `0x180` → lesen `31 00` / schreiben `32 00`;
+Gesamtsystem `0x480` → lesen `91 00`. Gesendet wird **immer über
+`0x680`** (freier PC/ComfortSoft-Kanal), das Ziel steckt nur im Header.
 
 ## Protokoll-Kurzreferenz (Details in docs/)
 
@@ -108,20 +152,9 @@ ESPHome-CLI, nicht über das HA-Add-on.
 
 ## Aktueller Stand / nächste Schritte
 
-Siehe TODO-Sektion in `docs/reverse-engineering.md` (frische Prioritätenliste
-oben). Kurzfassung (31.07.2026):
-Heizkreis-1- und Kühlen-Menü komplett gelesen + schreibend gerätebestätigt.
-Alle `0x601`-Kühlwerte schreibend abgenommen (Raumsoll `0x4F04` log+display,
-Steigung/Starttemp/KühlART display-verifiziert). **Schreib-Systematik:**
-`0x601`-Modul → `C0 01`, `0x180`-Manager → `32 00` (kein generischer Header!).
-Lesend im Manifest **und am Gerät bestätigt**: Prozessdaten, Energiezähler,
-Energiebilanz (1–12M + 13–24M + Effizienz), Laufzeiten, Starts, Vorlauf-PD
-(`logs/readsensors-verify.log`). `entity_category` (Konfiguration/Diagnose)
-gesetzt; Minimal-Temp als Text-Sensor („Aus").
-Offen (Prioritäten in docs): Leistung `0x7A40` Schreib-Modul einkreisen;
-Display-Name KÜHLEN `0x4F07`; neue Leseziele (Taupunkt, Kühlen-Live-Werte,
-E-Nacherwärmung, Heizung-Unterwerte); **ansehnliches HA-Dashboard bauen**.
-PoC mit `ha-stiebel-control`
-abgeschlossen: Framework liest die WPE-I bei 50 kbps korrekt
-(display-verifiziert), taugt aber nur als RE-Werkzeug/Backup, nicht als
-Ersatz – Details im PoC-Abschnitt der docs.
+**Maßgeblich ist die TODO-/Prioritätensektion oben in
+`docs/reverse-engineering.md`** – dort steht der jeweils aktuelle Stand
+(bestätigte Lese-/Schreibwerte, offene Ziele, Dashboard-Vorhaben,
+PoC-Ergebnis zu `ha-stiebel-control`). Diesen Abschnitt bewusst kurz
+halten und nicht mit der Doku doppeln, damit es nur eine Quelle der
+Wahrheit gibt.
