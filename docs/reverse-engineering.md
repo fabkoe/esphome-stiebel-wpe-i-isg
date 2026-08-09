@@ -715,6 +715,68 @@ Weitere Erkenntnisse aus der ISG-Doku (09.08.2026):
   Doku-Schrittweite (1 °C) ist gröber als unsere gerätebestätigte 0,1-°C-CAN-
   Granularität (Eco 20,1 → Echo `00 C9`) – unser CAN-Zugriff ist feiner als ISG.
 
+**G – Abgeleitete/berechnete Werte (Template-Sensoren, kein Geräterisiko)** *(Idee,
+Stand 09.08.2026)*
+
+Einige „offene Leseziele" (v.a. aus C) sind gar keine echten RE-Werte, sondern
+**Rechengrößen**, die auch das ISG nur ableitet. Als reine ESPHome-`template`-/
+Lambda-Sensoren (nur lesen+rechnen, **kein CAN-Schreibpfad**) → Geräterisiko = 0.
+
+Sofort berechenbar (alle Eingänge im Manifest vorhanden):
+- [ ] **Raum-Taupunkt** (= ISG Reg 506, erledigt damit C-Punkt „Taupunkt FET1"):
+  Magnus-Formel `Td = 243.12·α/(17.62−α)`, `α = ln(RH/100) + 17.62·T/(243.12+T)`
+  aus Raumtemperatur (`0x4EC7`) + Raumluftfeuchte (`0x4EC8`). Relevant fürs
+  Kühlen (Kondensat/Estrich).
+- [ ] **Gemittelte/gedämpfte Außentemperatur** (= C-Punkt „gemittelte AT"):
+  gleitender Mittelwert von `0x000C`. **Offen: Fensterbreite** (1 h / 3 h / lange
+  Zeitkonstante analog Heizkurven-AT – Designentscheidung).
+- [ ] **Spreizung Heizung (ΔT)** = Vorlauf WP (`0xFDF3`) − Rücklauf (`0x0016`).
+- [ ] **Spreizung Wärmequelle (Sole-ΔT)** = WQ-Vorlauf − WQ-Rücklauf.
+- [ ] **Momentane therm. Heizleistung** ≈ `V̇[l/min]·ΔT[K]·0,0697` (Wasser) aus
+  Wasservolumenstrom + ΔT (s.o.).
+
+Berechenbar mit Einschränkung:
+- [ ] **Sauggas-Überhitzung** ≈ Verdichtereintritt − Verdampfertemperatur –
+  sauber nur, wenn „Verdampfertemperatur" die *Verdampfungs-(Sättigungs-)*Temp
+  ist; sonst Kältemittel-Sättigungskurve über ND nötig (Kältemittel vom
+  Typenschild). (überschneidet sich mit C „Überhitzung/Unterkühlung")
+- [ ] **Unterkühlung** ≈ Verflüssigungstemp − Flüssigkeitstemp – uns fehlt die
+  reine Flüssigkeitsleitungs-Temp; nur Näherung über HD-Sättigung.
+- [ ] **Momentaner COP** = P_therm / P_el – P_therm s.o.; **P_el momentan fehlt**
+  („Strom/Spannung Inverter" ist vermutlich DC-Zwischenkreis, nicht Netz-
+  Wirkleistung). Ohne saubere el. Leistung nur grob.
+
+Nicht berechenbar (bleibt RE/Read): BETRIEBSSTATUS-Bitfeld 2501, Netz-U/I
+L1/L2/L3, Kühlen-Live Ist/Soll, WW-/Heizen-Config, Nacherwärmung/Bivalenz,
+Drehzahlen. (Jahres-Effizienz lesen wir bereits fertig vom Gerät – nicht rechnen.)
+
+**H – Veröffentlichung / Deployment (Stufe 3) ✅ vorbereitet (09.08.2026)**
+
+Umgesetzt (lokal, noch nicht veröffentlicht):
+- [x] **ESPHome-Package-Split** für Adopt-Flow: `wpe-i-package.yaml` (Kern) +
+  schlanke `wpe-i-manifest.yaml`; `esphome: project:` + `dashboard_import:`
+  (URL/Projektname = `CHANGEME`, sobald Repo entschieden).
+- [x] **Board/Pins als substitutions** (Waveshare-Defaults, überschreibbar).
+- [x] **Read-only-Split (Variante b):** Schreib-Entities in `wpe-i-writes.yaml`
+  ausgelagert → ohne Include physisch read-only.
+- [x] **Gestaffelter Betriebsmodus** `select` (0 lauschen / 1 poll / 2 voll,
+  Default 1) via global `g_mode`; Poller-Gate `g_mode>=1`, Schreib-Guards
+  `g_mode>=2`. **Debug-Logging** `switch` (`g_debug`) für den Roh-Dump.
+- [x] **Lizenz Apache-2.0 + NOTICE + DCO** (`CONTRIBUTING.md`); README/CLAUDE
+  angepasst; `ota_password` in secrets.example ergänzt.
+
+Offen (Nutzerentscheidung / Release-Schritte):
+- [ ] **Neues Repo** anlegen (Vorschlag `esphome-stiebel-wpe-i`), `CHANGEME`-
+  Platzhalter (dashboard_import-URL, `project.name`, README-Mini-Config) füllen.
+- [ ] **`NOTICE`/LICENSE-Copyright** mit echtem Namen füllen.
+- [ ] **`esphome config` + Flash-Test** am Gerät (esphome-CLI hier nicht
+  verfügbar; bisher nur YAML-Struktur-Check).
+- [ ] **Schreib-Guard am Gerät gegenchecken** (Modus 1 → Klick auf „… setzen"
+  darf NICHT schreiben; Modus 2 → schreibt). Gefahrlos, da Guard nur unterbindet.
+- [ ] Repo public schalten + `git tag v1.0.0` + Release.
+- [ ] Optional später: Web-Installer (ESP Web Tools) bewusst zurückgestellt
+  (Sicherheits-/Ein-Geräte-Bedenken).
+
 ---
 
 ### ✅ HEIZKREIS-1-Menü komplett geräteverifiziert (30.07.2026)
