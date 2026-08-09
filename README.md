@@ -62,6 +62,8 @@ esphome/
   secrets.yaml.example      # Vorlage für WLAN-Zugangsdaten
 docs/
   reverse-engineering.md    # Protokoll-Doku, Wertetabellen, TODOs
+  wpm4-menue.md             # Menübaum des WPM4-Displays (Coverage-Legende)
+  manuals/                  # lokal gesicherte offizielle Handbücher (PDF)
 archive/
   wpe-can-sniffer-v1.yaml   # historisch: erster Sniffer (MQTT-basiert)
   wpe-can-sniffer-v2.yaml   # historisch: Sniffer über ESPHome-Logs
