@@ -1,0 +1,511 @@
+# =========================================================================
+# Schreib-Entities (Vollzugriff). NUR fuer den Voll-Build - via
+# wpe-i-manifest.yaml ZUSAETZLICH zu wpe-i-package.yaml eingebunden.
+# Wird dieses File nicht inkludiert, ist die Firmware physisch read-only.
+#
+# Jede Schreib-Aktion ist zudem per g_mode >= 2 (Betriebsmodus
+# "Vollzugriff") abgesichert; in Modus 0/1 sind die Entities inert.
+# =========================================================================
+
+
+# =========================================================================
+# EXPERIMENTELL: Schreib-Test fuer Betriebsart (Index 0x4F1B)
+#
+# Format basiert auf einem dokumentierten Schreib-Beispiel fuer einen
+# anderen Elster-Index (PROGRAMMSCHALTER 0x0112) aus dem KNX-User-Forum:
+#   680: 32 00 fa 01 12 02 00
+#   "Die '2' in 32 steht fuer Schreiben"
+# NICHT verifiziert, ob Byte0=0x32 auch fuer unseren Index/unser Geraet
+# passt. Dieser Button schreibt bewusst NUR den aktuell bekannten Wert
+# zurueck (keine echte Aenderung) - dient nur zum Testen, ob die WPM
+# das Schreib-Telegramm ueberhaupt akzeptiert (sichtbar an einem neuen
+# Broadcast auf idx=0x4F1B kurz danach im Log).
+#
+# ERST wenn dieser Test sauber funktioniert (Bestaetigung im Log, keine
+# Fehler, kein unerwartetes Verhalten der Anlage), sollte daraus ein
+# echter Schreib-Service mit variablem Zielwert gebaut werden.
+# =========================================================================
+button:
+  - platform: template
+    name: "Betriebsart Test-Rueckschreiben"
+    entity_category: diagnostic
+    on_press:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          int16_t v = id(last_betriebsart);
+          if (v < 1 || v > 6) {
+            ESP_LOGW("wpe_i", "Betriebsart-Test abgebrochen: kein gueltiger Wert bekannt (%d)", v);
+            return;
+          }
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> write_betriebsart = {0x32, 0x00, 0xFA, 0x4F, 0x1B, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, write_betriebsart);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   write_betriebsart[0], write_betriebsart[1], write_betriebsart[2], write_betriebsart[3],
+                   write_betriebsart[4], write_betriebsart[5], write_betriebsart[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Betriebsart-Test-Schreiben gesendet: Wert=%d", v);
+
+# =========================================================================
+# Betriebsart-Steuerung (Index 0x4F1B) - schreibend bestaetigt am 19.07.2026:
+#   Ziel=Komfort(3) und Ziel=Eco(4) beide erfolgreich getestet, jeweils
+#   binnen ~820ms mit korrektem Wert auf 0x480 bestaetigt, keine Fehler.
+# =========================================================================
+select:
+  - platform: template
+    name: "Betriebsart setzen"
+    entity_category: config
+    id: betriebsart_select
+    optimistic: false
+    options:
+      - "Bereitschaftsbetrieb"
+      - "Programmbetrieb"
+      - "Komfortbetrieb"
+      - "Eco-Betrieb"
+      - "Warmwasserbetrieb"
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          uint8_t v = 0;
+          if (x == "Bereitschaftsbetrieb") v = 1;
+          else if (x == "Programmbetrieb") v = 2;
+          else if (x == "Komfortbetrieb") v = 3;
+          else if (x == "Eco-Betrieb") v = 4;
+          else if (x == "Warmwasserbetrieb") v = 5;
+          if (v == 0) {
+            ESP_LOGW("wpe_i", "Betriebsart setzen: unbekannte Option '%s'", x.c_str());
+            return;
+          }
+          std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x1B, 0x00, v};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Betriebsart gesetzt auf: %s (%d)", x.c_str(), v);
+
+  # =======================================================================
+  # Kuehlkreis 1 Ein/Aus (0x4F08) + KuehlART (0x4F05), Mischermodul 0x601.
+  # Schreib-Header C0 01 FA <idx> 00 <v>. 0x4F08 SCHREIBEN GERAETEBESTAETIGT
+  # (30.07.2026, logs/kuehlen-verify.log): TX C0 01 FA 4F 08 00 00/01 -> Geraet
+  # meldete ~0,8 s spaeter den neuen Wert, auch am Display verifiziert.
+  # KuehlART 0x4F05 gleiches Modul/Format, am 30.07.2026 schreibend AM DISPLAY
+  # VERIFIZIERT (Nutzer, Fläche<->Geblaese + zurueck) - ohne TX-Log-Mitschnitt.
+  # Enum-Werte 30.07.2026 lesend bestaetigt (1=Ein/Flaeche, 0=Aus/Geblaese).
+  # =======================================================================
+  - platform: template
+    name: "Kuehlkreis 1 setzen"
+    entity_category: config
+    id: kuehlkreis_select
+    optimistic: false
+    options:
+      - "Aus"
+      - "Ein"
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          uint8_t v = (x == "Ein") ? 1 : 0;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x08, 0x00, v};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Kuehlkreis 1 gesetzt auf: %s (%d)", x.c_str(), v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x08, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  - platform: template
+    name: "Kuehlart setzen"
+    entity_category: config
+    id: kuehlart_select
+    optimistic: false
+    options:
+      - "Geblaesekuehlung"
+      - "Flaechenkuehlung"
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          uint8_t v = (x == "Flaechenkuehlung") ? 1 : 0;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x05, 0x00, v};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Kuehlart gesetzt auf: %s (%d)", x.c_str(), v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x05, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  # =======================================================================
+  # Uebergeordneter Schalter KUEHLEN (Index 0x4F07). Manager-/System-Wert
+  # (0x4Fxx) wie die Betriebsart (0x4F1B), daher Schreib-Header 32 00
+  # (Modul 0x180). SCHREIBEN GERAETEBESTAETIGT (30.07.2026,
+  # logs/kuehlen-verify.log): TX 32 00 FA 4F 07 00 00 -> Geraet meldete
+  # 0,56 s spaeter 0x4F07 val=0, TX ..00 01 -> 0,86 s spaeter val=1; beide
+  # Richtungen auch am WPM-Display verifiziert. Read-back-Header 31 00
+  # (0x180) ebenfalls geraetebestaetigt (Poll wird beantwortet).
+  # =======================================================================
+  - platform: template
+    name: "Kuehlen setzen"
+    entity_category: config
+    id: kuehlen_select
+    optimistic: false
+    options:
+      - "Aus"
+      - "Ein"
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          uint8_t v = (x == "Ein") ? 1 : 0;
+          std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x07, 0x00, v};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Kuehlen gesetzt auf: %s (%d)", x.c_str(), v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          std::vector<uint8_t> rb = {0x31, 0x00, 0xFA, 0x4F, 0x07, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+# =========================================================================
+# Steigung Heizkurve (Index 0x4F2B, Mischermodul 0x601).
+# SCHREIBEN GERAETEBESTAETIGT (30.07.2026): unser Write von 0x680 mit
+#   C0 01 FA 4F 2B <hi> <lo>   (C0 01 = Setzen/Nibble 0 an 0x601)
+# aenderte den Wert 0,50 -> 0,40; am WPM4-Display verifiziert
+# (STEIGUNG HEIZKURVE 0.40), TX-Log C0 01 FA 4F 2B 00 28 vorhanden.
+# Schreib-Header per Display-Sniff hergeleitet (logs/heizkurve-write-*.log).
+# Wir senden das Payload ueber 0x680 (nie 0x100).
+# Geraete-Gueltigkeitsbereich laut Sniff (F8/F9-Frames): 0,20 - 3,00.
+#
+# Grenzen bewusst konservativ gewaehlt (0,1-2,5): laut Betriebsanleitung
+# koennen falsche Heizkurven-Werte zu Schaeden an Waermepumpe oder
+# Estrich fuehren. Typische Richtwerte: Fussbodenheizung ~0,4,
+# Radiatorenheizung ~0,8.
+# =========================================================================
+number:
+  - platform: template
+    name: "Steigung Heizkurve setzen"
+    entity_category: config
+    id: steigung_heizkurve_set
+    optimistic: false
+    min_value: 0.1
+    max_value: 2.5
+    step: 0.05
+    unit_of_measurement: ""
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          int16_t v = (int16_t) round(x * 100.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x2B, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Steigung Heizkurve gesetzt auf: %.2f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          // Sofortiger Read-back (siehe Komforttemperatur): sonst dauert die
+          // Wertuebernahme bis zum naechsten 60s-Poll (am Geraet beobachtet).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x2B, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  # =======================================================================
+  # Komforttemperatur / Eco-Temperatur Heizkreis (Index 0x4EB8 / 0x4EB9,
+  # Mischermodul 0x601). Schreib-Format aus dem bestaetigten Heizkurven-
+  # Write abgeleitet: C0 01 FA 4E B8/B9 <hi> <lo> (Wert = degC * 10),
+  # gesendet ueber 0x680. NOCH NICHT am Geraet verifiziert - erster echter
+  # Schreibtest bewusst mit kleinem Schritt, TX-Log (C0 01 ..) UND Display-
+  # Kontrolle. Der alte 21.07.-Fehlschlag lag am falschen Header (32 00).
+  # Grenzen konservativ: Raumsolltemperaturen, kein Estrich-Risiko wie bei
+  # der Heizkurve, aber Extremwerte vermeiden. Geraete-Min/Max unbekannt.
+  # =======================================================================
+  - platform: template
+    name: "Komforttemperatur Heizkreis setzen"
+    entity_category: config
+    id: komforttemperatur_hk_set
+    optimistic: false
+    min_value: 10.0
+    max_value: 28.0
+    step: 0.1
+    unit_of_measurement: "°C"
+    device_class: temperature
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4E, 0xB8, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Komforttemperatur gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          // Sofortiger Read-back statt bis zum 60s-Poll zu warten: Wert
+          // direkt nach dem Write anfordern (Modul 0x601 antwortet prompt).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xB8, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  - platform: template
+    name: "Eco-Temperatur Heizkreis setzen"
+    entity_category: config
+    id: ecotemperatur_hk_set
+    optimistic: false
+    min_value: 5.0
+    max_value: 24.0
+    step: 0.1
+    unit_of_measurement: "°C"
+    device_class: temperature
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4E, 0xB9, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Eco-Temperatur gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          // Sofortiger Read-back (siehe Komforttemperatur).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xB9, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  # Minimal-Temperatur HK (0x4EA7). Geraet kennt am Display nur "Aus" oder
+  # 10-30 degC (nichts dazwischen; F8/F9-Sniff: Min 10,0 / Max 30,0). Schieber
+  # bildet das ab: 0 = "Aus" (Sonderwert 0x9000), ab 10 = echte Temperatur.
+  # Alles unter 10 faengt die Set-Logik als "Aus" ab, damit nie eine
+  # ungueltige 0,1-9,9 degC gesendet wird.
+  - platform: template
+    name: "Minimal Temperatur Heizkreis setzen"
+    entity_category: config
+    id: min_temp_hk_set
+    optimistic: false
+    min_value: 0
+    max_value: 30.0
+    step: 1
+    unit_of_measurement: "°C"
+    device_class: temperature
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          uint16_t raw;
+          const char* mode;
+          if (x < 10.0f) {            // Schieber < 10 = "Aus" (0x9000)
+            raw = 0x9000;
+            mode = "Aus";
+          } else {
+            raw = (uint16_t)((int16_t) round(x * 10.0f));
+            mode = "Temp";
+          }
+          uint8_t val_hi = (raw >> 8) & 0xFF;
+          uint8_t val_lo = raw & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4E, 0xA7, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Minimal Temperatur gesetzt (%s) auf: %.1f", mode, x);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          // Sofortiger Read-back (siehe Komforttemperatur).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xA7, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  # Raumeinfluss HK (0x4EA4): direkt in Prozent, Geraetebereich 0-100 %.
+  # Das Geraet rastet am Display auf 5er-Schritte (18% gesendet -> 20%
+  # gespeichert, im Log geraeteverifiziert) -> step 5.
+  - platform: template
+    name: "Raumeinfluss Heizkreis setzen"
+    entity_category: config
+    id: raumeinfluss_hk_set
+    optimistic: false
+    min_value: 0
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          int16_t v = (int16_t) round(x);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4E, 0xA4, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Raumeinfluss gesetzt auf: %.0f%% (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          // Sofortiger Read-back (siehe Komforttemperatur).
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xA4, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  # =======================================================================
+  # Kuehlen-Zahlenwerte (Mischermodul 0x601): Raumsolltemperatur (0x4F04),
+  # Steigung Kuehlkurve (0x4FB9), Starttemperatur (0x4FBE).
+  # Schreib-Format aus dem bestaetigten Heizkurven-Write abgeleitet
+  # (C0 01 FA <idx> <hi> <lo>, ueber 0x680).
+  # Raumsolltemperatur 0x4F04 SCHREIBEN GERAETEBESTAETIGT (30.07.2026,
+  # logs\raumsoll-write.log): TX C0 01 FA 4F 04 00 C9 (20,1) -> Geraet meldete
+  # ~0,8 s spaeter val=201 (Broadcast 80 01 + Antwort D2 00), am Display 20,1,
+  # danach sauber auf 20,0 zurueck.
+  # 0x4FB9/0x4FBE am 30.07.2026 schreibend AM DISPLAY VERIFIZIERT (Nutzer, je
+  # gesetzt + zurueckgestellt) - ohne TX-Log-Mitschnitt; Schreibpfad = diese
+  # Entities (C0 01, wie log-belegtes 0x4F04). Steigung Kuehlkurve wg. Taupunkt-/
+  # Estrich-Risiko weiter nur mit kleinem Schritt aendern.
+  # Grenzen = am Display abgelesene Geraetebereiche (30.07.2026).
+  # Achtung Kuehlkurve: zu steile Kurve -> tiefe Vorlauftemp -> Taupunkt-/
+  # Kondensationsrisiko am Estrich; im Zweifel flach lassen.
+  # =======================================================================
+  - platform: template
+    name: "Raumsolltemperatur Kuehlen setzen"
+    entity_category: config
+    id: raumsolltemp_kuehlen_set
+    optimistic: false
+    min_value: 20.0
+    max_value: 30.0
+    step: 0.1
+    unit_of_measurement: "°C"
+    device_class: temperature
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x04, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Raumsolltemperatur Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x04, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  - platform: template
+    name: "Steigung Kuehlkurve setzen"
+    entity_category: config
+    id: steigung_kuehlkurve_set
+    optimistic: false
+    min_value: 0.1
+    max_value: 3.0
+    step: 0.05
+    unit_of_measurement: ""
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          int16_t v = (int16_t) round(x * 100.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0xB9, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Steigung Kuehlkurve gesetzt auf: %.2f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0xB9, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  - platform: template
+    name: "Starttemperatur Kuehlen setzen"
+    entity_category: config
+    id: starttemp_kuehlen_set
+    optimistic: false
+    min_value: 15.0
+    max_value: 30.0
+    step: 0.5
+    unit_of_measurement: "°C"
+    device_class: temperature
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0xBE, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Starttemperatur Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0xBE, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+
+  # =======================================================================
+  # Hysterese Vorlauftemp Kuehlen (Index 0x4F00, Manager-Modul 0x180).
+  # SCHREIBEN GERAETEBESTAETIGT (30.07.2026): Schreib-Header 32 00 (wie
+  # KUEHLEN 0x4F07, gleiches Modul 0x180); Test 4,0 -> 4,5 mit TX-Log
+  # (32 00 FA 4F 00 ..), Geraete-Rueckmeldung und Display-Kontrolle bestaetigt.
+  # Grenzen = Geraetebereich (F8/F9: 4,0-10,0 K).
+  # =======================================================================
+  - platform: template
+    name: "Hysterese Vorlauf Kuehlen setzen"
+    entity_category: config
+    id: hysterese_vorlauf_kuehlen_set
+    optimistic: false
+    min_value: 4.0
+    max_value: 10.0
+    step: 0.1
+    unit_of_measurement: "K"
+    set_action:
+      - lambda: |-
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          int16_t v = (int16_t) round(x * 10.0f);
+          uint8_t val_hi = (v >> 8) & 0xFF;
+          uint8_t val_lo = v & 0xFF;
+          std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x00, val_hi, val_lo};
+          id(my_canbus).send_data(0x680, false, w);
+          char txbuf[24];
+          snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
+                   w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
+          ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
+          ESP_LOGI("wpe_i", "Hysterese Vorlauf Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
+      - delay: 250ms
+      - lambda: |-
+          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          std::vector<uint8_t> rb = {0x31, 0x00, 0xFA, 0x4F, 0x00, 0x00, 0x00};
+          id(my_canbus).send_data(0x680, false, rb);
+

@@ -13,9 +13,21 @@ Schreibformate, keine Fremd-Merge-Abhängigkeit).
 
 ## Wichtigste Dateien
 
-- `esphome/wpe-i-manifest.yaml` – die Firmware. Ein generischer
-  CAN-Frame-Parser in der `on_frame`-Lambda decodiert alle Frames
-  und speist die Sensor-/Steuer-Entities.
+- `esphome/wpe-i-package.yaml` – **der Firmware-Kern (read-only)**
+  (wiederverwendbares ESPHome-Package, Ziel der `github://`-Referenz/des
+  Adopt-Flows). Enthält substitutions (name/board/CAN-Pins/bitrate),
+  `esphome:`+`project:`, `dashboard_import:`, alle **Lese**-Sensoren, den
+  generischen CAN-Frame-Parser in der `on_frame`-Lambda, den Poller sowie die
+  Steuer-Entities `select` „Betriebsmodus" + `switch` „Debug-Logging".
+- `esphome/wpe-i-writes.yaml` – **die Schreib-Entities** (`button`/`select`/
+  `number`, die „… setzen"-Entities). Bewusst ausgelagert: wird die Datei nicht
+  eingebunden, ist die Firmware **physisch read-only**. Jede Schreib-Aktion ist
+  zusätzlich per `g_mode >= 2` (Betriebsmodus „Vollzugriff") abgesichert.
+- `esphome/wpe-i-manifest.yaml` – **schlanke lokale Flash-Config**: bindet
+  `wpe-i-package.yaml` **und** `wpe-i-writes.yaml` per `!include` ein (Voll-Build)
+  und ergänzt WLAN (+OTA aus secrets). Weiterhin die lokal geflashte Datei
+  (`esphome run wpe-i-manifest.yaml`); für read-only die zweite `!include`-Zeile
+  weglassen.
 - `docs/reverse-engineering.md` – **die zentrale Wissensbasis**:
   Protokollformat, alle bestätigten Elster-Indizes mit CAN-IDs und
   Skalierung, CAN-ID→Modul-Zuordnung, PoC-Ergebnisse, offene TODOs.
@@ -35,27 +47,36 @@ Schreibformate, keine Fremd-Merge-Abhängigkeit).
 
 ## Architektur des Manifests (Big Picture)
 
-Das Manifest ist **eine einzige Datei** mit diesen Top-Level-Sektionen
-(in Lesereihenfolge): `globals` (u.a. `frame_count`) → `sensor`
+Der Firmware-Kern (`wpe-i-package.yaml`, früher alles in `wpe-i-manifest.yaml`)
+hat nach dem Package-Kopf (`substitutions`/`esphome`/`esp32`/`logger`/`api`/
+`ota`/`dashboard_import`) diese Top-Level-Sektionen (in Lesereihenfolge):
+`globals` (u.a. `frame_count`, `g_mode`, `g_debug`) → `sensor`
 (~80 Blöcke) / `text_sensor` → `canbus` mit der `on_frame`-Lambda
-(Decoder) → `interval` (Poller) → `button` / `select` / `number`
-(Schreib-Entities). Der Datenfluss:
+(Decoder) → `interval` (Poller) → `select`/`switch` (Betriebsmodus + Debug).
+Die **Schreib**-Entities (`button`/`select`/`number`) liegen separat in
+`wpe-i-writes.yaml` (Read-only-Split). Der Datenfluss:
 
 1. **Poller (`interval:`, 60 s):** sendet Lese-**Anfragen** über CAN-ID
-   `0x680`, jeweils gestaffelt mit `delay`s.
+   `0x680`, jeweils gestaffelt mit `delay`s. Der ganze Poll-Block ist per
+   `if: condition: lambda 'return id(g_mode) >= 1;'` gegated – in Modus 0
+   („Nur lauschen") sendet der ESP **nichts**.
 2. **Decoder (`on_frame:`):** filtert Lese-Anfragen weg
    (`(x[0] & 0x0F) == 0x01`, siehe Sicherheits-/Protokollhinweis),
    zerlegt kurzen/erweiterten Index und Wert, und läuft dann durch eine
    lange `if (idx == … && can_id == …)`-Kette, die per `publish_state`
-   die passende Entity füttert.
-3. **Schreiben:** `set_action` einer Entity sendet den Write-Frame und
+   die passende Entity füttert. Am Ende optionaler Roh-Dump, nur wenn
+   `g_debug` (Switch „Debug-Logging").
+3. **Schreiben:** `set_action` einer Entity (in `wpe-i-writes.yaml`) beginnt mit
+   dem Guard `if (id(g_mode) < 2) { … return; }`, sendet dann den Write-Frame und
    nach `~250 ms` **sofort eine Lese-Anfrage (Read-back)** desselben
    Index – sonst würde HA den neuen Wert erst beim nächsten 60-s-Poll
    sehen (am Gerät beobachtet).
 
 **Konsequenz für neue Werte:** Ein Lesewert braucht **immer beide
 Seiten** – eine Anfrage im `interval:` **und** eine Decode-Zeile in
-`on_frame:`. Fehlt eine, bleibt die Entity leer.
+`on_frame:`. Fehlt eine, bleibt die Entity leer. Neue **Schreib**-Entities
+gehören nach `wpe-i-writes.yaml` und beginnen ihre Aktion mit dem
+`g_mode < 2`-Guard (sonst wären sie im Read-only-Build/Modus 0-1 nicht inert).
 
 ### Adressierungs-Formel (Header pro Zielmodul)
 
