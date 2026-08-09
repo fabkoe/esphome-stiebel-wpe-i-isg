@@ -653,8 +653,8 @@ die **bereits das ISG unterstützen** (HA „Stiebel Eltron ISG", generische
 Modbus-TCP-Clients), unser nachgebautes Interface **ohne Anpassung** nutzen
 können. Der ESP tritt also als ISG-Ersatz im Netz auf (Port 502, Slave-ID 1).
 
-Grundlage: `Modbus Bedienungsanleitung.pdf` (ISG Modbus-TCP/IP-Doku, 208 S.,
-im Projekt-Root). Für uns maßgeblich ist die Spalte **„WPMsystem"** (Abschnitt
+Grundlage: die offizielle **ISG Modbus-TCP/IP-Doku** (~208 S., extern verlinkt
+unter „Offizielle Handbücher"). Für uns maßgeblich ist die Spalte **„WPMsystem"** (Abschnitt
 6/8), **nicht** „WPM G" (Abschnitt 9). Beleg: `REGLERKENNUNG` (Reg 5002) =
 **449** für WPMsystem, unser Regler meldet SW **„449-10"**.
 
@@ -899,13 +899,16 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
 
 ## Hilfreiche externe Referenzen
 
-### Lokal gesicherte Handbücher (im Repo)
-- `../Modbus Bedienungsanleitung.pdf` – ISG Modbus-TCP/IP-Doku (208 S., Projekt-Root)
-- `manuals/WPE-I-230-Premium_Bedienung-Installation_DOC-00082618.pdf` – offizielle
-  Bedienungs- + Installationsanleitung der WPE-I-…-230-Premium-Baureihe
-  (Quelle: `assets.stiebel-eltron.com/celum/Docs/originalFile/DOC-00082618.pdf`, 10 MB)
-- `manuals/ISG-Software-Erweiterung_DOC-00067674.pdf` – offizielle ISG-
-  Software-Erweiterung (27 S.; Quelle: `assets.stiebel-eltron.com/…/DOC-00067674.pdf`)
+### Offizielle Handbücher (extern verlinkt, nicht im Repo gespiegelt)
+Aus Urheberrechtsgründen **nur verlinkt** – direkt beim Hersteller laden:
+- **ISG Modbus TCP/IP** (mehrsprachig, ~208 S.):
+  https://www.stiebel-eltron.de/toolbox/content/docs/anleitungen/installation/ISG_Modbus/321798-44755-9770_ISG%20Modbus_de_en_fr_it_nl_cs_sk_pl_hu.pdf
+- **WPE-I …-230-Premium – Bedienung + Installation** (DOC-00082618):
+  https://assets.stiebel-eltron.com/celum/Docs/originalFile/DOC-00082618.pdf
+- **ISG-Software-Erweiterung** (DOC-00067674, 27 S.):
+  https://assets.stiebel-eltron.com/celum/Docs/originalFile/DOC-00067674.pdf
+- **Waveshare ESP32-S3-RS485-CAN – Schaltbild:**
+  https://files.waveshare.com/wiki/ESP32-S3-RS485-CAN/ESP32-S3-RS485-CAN-Schematic.pdf
 
 ### Protokoll / CAN-Reverse-Engineering
 - **Elster-Protokolltabelle:** `http://juerg5524.ch/data/ElsterTable.inc`
@@ -929,4 +932,4 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
   Draht). Genau die 1-/0-basiert-Falle, die der Server richtig treffen muss.
 - **openHAB Modbus-Binding** (zweite Referenz-Registerinterpretation):
   `openhab.org/addons/bindings/modbus.stiebeleltron/`
-- **Stiebel Eltron Modbus-Doku** (andere Adressierung, aber gleiche Sentinel-Werte/Kategorien): offizielle ISG-Modbus-Anleitung (lokal gesichert, s.o.)
+- **Stiebel Eltron Modbus-Doku** (andere Adressierung, aber gleiche Sentinel-Werte/Kategorien): offizielle ISG-Modbus-Anleitung (extern verlinkt, s.o.)

@@ -67,7 +67,8 @@ Default **1**):
 | Inbetriebnahme | Plug-and-play | Verdrahten + Flashen (Adopt-Flow für Updates) |
 
 > Der Vergleich beruht auf den öffentlichen ISG-Modbus-/Software-Unterlagen
-> (`docs/manuals/`) und ist nach bestem Wissen erstellt; einzelne ISG-Zeilen
+> (extern verlinkt in [`docs/reverse-engineering.md`](docs/reverse-engineering.md))
+> und ist nach bestem Wissen erstellt; einzelne ISG-Zeilen
 > können je nach ISG-Variante/Softwarestand abweichen. Das ISG bleibt für
 > Plug-and-play, Cloud-Fernzugriff und Herstellersupport die einfachere Wahl.
 
@@ -149,7 +150,6 @@ docs/
   reverse-engineering.md    # Protokoll-Doku, Wertetabellen, TODOs
   wpm4-menue.md             # Menübaum des WPM4-Displays (Coverage-Legende)
   hardware.md               # Board Waveshare ESP32-S3-RS485-CAN (Pinout, Links)
-  manuals/                  # lokal gesicherte offizielle Handbücher + Schaltbild
 archive/
   wpe-can-sniffer-v1.yaml   # historisch: erster Sniffer (MQTT-basiert)
   wpe-can-sniffer-v2.yaml   # historisch: Sniffer über ESPHome-Logs
