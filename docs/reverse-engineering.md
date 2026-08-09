@@ -764,11 +764,13 @@ Umgesetzt (lokal, noch nicht veröffentlicht):
   `g_mode>=2`. **Debug-Logging** `switch` (`g_debug`) für den Roh-Dump.
 - [x] **Lizenz Apache-2.0 + NOTICE + DCO** (`CONTRIBUTING.md`); README/CLAUDE
   angepasst; `ota_password` in secrets.example ergänzt.
+- [x] **Neues (privates) Repo** `fabkoe/esphome-stiebel-wpe-i-isg` angelegt,
+  alle Platzhalter gefüllt (Owner/URLs `@main`, `project.name`, Copyright
+  „Fabian Köster"). Beschreibung + Feature-Vergleich mit ISG-Bezug im README.
+- [x] **Hersteller-PDFs entfernt** (Working Tree **und** History via
+  filter-repo) und extern verlinkt – Repo damit copyright-sauber für Public.
 
 Offen (Nutzerentscheidung / Release-Schritte):
-- [ ] **Neues Repo** anlegen (Vorschlag `esphome-stiebel-wpe-i`), `CHANGEME`-
-  Platzhalter (dashboard_import-URL, `project.name`, README-Mini-Config) füllen.
-- [ ] **`NOTICE`/LICENSE-Copyright** mit echtem Namen füllen.
 - [ ] **`esphome config` + Flash-Test** am Gerät (esphome-CLI hier nicht
   verfügbar; bisher nur YAML-Struktur-Check).
 - [ ] **Schreib-Guard am Gerät gegenchecken** (Modus 1 → Klick auf „… setzen"
