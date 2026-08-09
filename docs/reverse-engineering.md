@@ -854,7 +854,15 @@ Offene Entscheidungen (bewusst noch nicht getroffen):
   Schreibpfad am Gerät klären (select blockt `v==0` bereits).
 - [ ] **Gefahren-Register auf einer Write-Bridge NIE freigeben:** Reg 1520 RESET
   (Werks-Reset!), 1521 RESTART, Notbetrieb.
+- [ ] **Adressierung 1-/0-basiert:** Die HA-Lib `pail23/stiebel_eltron_isg_component`
+  nutzt *wire addresses* = **Doku-Register minus 1** (dokumentiertes Reg 1514 →
+  1513 auf dem Draht). Unser Server muss die 1-basierte Doku-Adresse als (Reg−1)
+  auf dem Draht ausliefern, sonst sind alle Werte um 1 verschoben. Vor der
+  Umsetzung an einem echten Client (z. B. genau dieser Integration) gegentesten.
 - [ ] Als Vorstufe ggf. vollständige Mapping-Tabelle Modbus↔Elster in docs/.
+  Abgleichsquelle: `sebastianPsm/stiebel_eltron_logging` liefert eine fertige
+  `modbus.yaml` für WPMsystem (449) = „was das echte ISG bei unserem Regler
+  ausgibt" – direkt gegen unseren RE-Stand haltbar (s. Referenzen).
 
 Weitere Erkenntnisse aus der ISG-Doku (09.08.2026):
 - **`0x9000` = „AUS" ist generelles Stiebel-Muster** (Doku-Fußnote zu Reg 1508
@@ -990,9 +998,34 @@ verifiziertem Format; kleine Schritte, Display-Kontrolle. Not-Betrieb nie testen
 
 ## Hilfreiche externe Referenzen
 
+### Lokal gesicherte Handbücher (im Repo)
+- `../Modbus Bedienungsanleitung.pdf` – ISG Modbus-TCP/IP-Doku (208 S., Projekt-Root)
+- `manuals/WPE-I-230-Premium_Bedienung-Installation_DOC-00082618.pdf` – offizielle
+  Bedienungs- + Installationsanleitung der WPE-I-…-230-Premium-Baureihe
+  (Quelle: `assets.stiebel-eltron.com/celum/Docs/originalFile/DOC-00082618.pdf`, 10 MB)
+- `manuals/ISG-Software-Erweiterung_DOC-00067674.pdf` – offizielle ISG-
+  Software-Erweiterung (27 S.; Quelle: `assets.stiebel-eltron.com/…/DOC-00067674.pdf`)
 
-
+### Protokoll / CAN-Reverse-Engineering
 - **Elster-Protokolltabelle:** `http://juerg5524.ch/data/ElsterTable.inc`
+  (Mirror: `github.com/andig/canprogs`)
+- **andig/goelster** – Go-Implementierung des Elster-CAN, gute Referenz für
+  Index-Skalierungen: `github.com/andig/goelster`
 - **OneESP32ToRuleThemAll** (Referenzprojekt, andere WP-Baureihen): `github.com/kr0ner/OneESP32ToRuleThemAll`
-- **Stiebel Eltron Modbus-Doku** (andere Adressierung, aber gleiche Sentinel-Werte/Kategorien): offizielle ISG-Modbus-Anleitung
-- **pail23/stiebel_eltron_isg_component** (Modbus, braucht ISG – nicht direkt nutzbar, aber gute Namens-Roadmap)
+- **simonlmn/can-wifi-gateway-stiebel-eltron** (ESP8266, CAN→HTTP) und
+  **roberreiter/StiebelEltron-heatpump-over-esphome-can-bus** (ESPHome read/write)
+  – weitere ESP-Ansätze zum Format-Abgleich
+- **HA-Community-Thread** (MCP2515 CAN, viel Protokollwissen):
+  `community.home-assistant.io/t/configured-my-esphome-with-mcp2515-can-bus-for-stiebel-eltron-heating-pump/366053`
+
+### Modbus / ISG-Emulation (→ TODO F)
+- **sebastianPsm/stiebel_eltron_logging** – enthält eine fertige `modbus.yaml`
+  **speziell für den WPMsystem-Regler** (= unser `REGLERKENNUNG 449`); praktisch
+  die maschinenlesbare Registerliste zur ISG-Nachbildung: `github.com/sebastianPsm/stiebel_eltron_logging`
+- **pail23/stiebel_eltron_isg_component** (HA-Integration, die gegen unser
+  emuliertes Interface fahren würde). ⚠️ **Wichtig:** die Lib nutzt *wire
+  addresses* = Doku-Register **minus 1** (dokumentiertes Reg 1514 → 1513 auf dem
+  Draht). Genau die 1-/0-basiert-Falle, die der Server richtig treffen muss.
+- **openHAB Modbus-Binding** (zweite Referenz-Registerinterpretation):
+  `openhab.org/addons/bindings/modbus.stiebeleltron/`
+- **Stiebel Eltron Modbus-Doku** (andere Adressierung, aber gleiche Sentinel-Werte/Kategorien): offizielle ISG-Modbus-Anleitung (lokal gesichert, s.o.)
