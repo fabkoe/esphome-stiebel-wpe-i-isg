@@ -1,8 +1,8 @@
 substitutions:
   name: wpe-i-heatpump
   friendly_name: "WPE-I Waermepumpe"
-  # Board + CAN-Pins als Defaults fuer die Waveshare ESP32-S3-RS485-CAN
-  # (siehe docs/hardware.md). Fuer andere Boards hier ueberschreiben.
+  # Board + CAN pins as defaults for the Waveshare ESP32-S3-RS485-CAN
+  # (see docs/hardware.md). For other boards override here.
   board: esp32-s3-devkitc-1
   can_tx_pin: GPIO15
   can_rx_pin: GPIO16
@@ -12,16 +12,16 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   project:
-    # Wird beim Adopt-Flow angezeigt (Format "author.projekt").
+    # Shown in the adopt flow (format "author.project").
     name: "fabkoe.esphome-stiebel-wpe-i-isg"
     version: "1.0.0"
 
 esp32:
   board: ${board}
   framework:
-    # esp-idf statt arduino: der arduino-Core lieferte vorkompilierte WLAN-
-    # Blobs, die mit ESP-IDF 5.5.5 (ESPHome 2026.7.3) nicht zusammenpassten
-    # -> Linkfehler in libwpa_supplicant.a. esp-idf baut den Stack konsistent.
+    # esp-idf instead of arduino: the arduino core shipped precompiled Wi-Fi
+    # blobs that were incompatible with ESP-IDF 5.5.5 (ESPHome 2026.7.3)
+    # -> link error in libwpa_supplicant.a. esp-idf builds the stack consistently.
     type: esp-idf
 
 logger:
@@ -33,45 +33,45 @@ ota:
   platform: esphome
   password: !secret ota_password
 
-# Adopt-Flow: Das Geraet meldet sich im ESPHome-/HA-Dashboard zur Uebernahme
-# an. package_import_url MUSS auf das OEFFENTLICHE Repo zeigen (Repo aktuell noch
-# PRIVAT -> Adopt/github:// funktioniert erst nach Public-Schalten). Beim Release
-# @main auf den Versions-Tag (@v1.0.0) umstellen.
+# Adopt flow: the device announces itself in the ESPHome/HA dashboard for adoption.
+# package_import_url MUST point to the PUBLIC repo (repo is currently still
+# PRIVATE -> adopt/github:// only works once made public). On release
+# switch @main to the version tag (@v1.0.0).
 dashboard_import:
   package_import_url: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@main
   import_full_config: false
 
 # =========================================================================
-# Stiebel Eltron WPE-I 06 HKW 230 Premium - Elster/Kromschroeder-Protokoll
-# Reverse-engineered Werte (Stand: 17.07.2026), Referenz:
+# Stiebel Eltron WPE-I 06 HKW 230 Premium - Elster/Kromschroeder protocol
+# Reverse-engineered values (as of 2026-07-17), reference:
 # http://juerg5524.ch/data/ElsterTable.inc
 #
-# Frame-Format (7 Byte Nutzdaten):
-#   Kurzer Index (<=0xFF):     [Cmd][00][Idx][Wert_hi][Wert_lo][00][00]
-#   Erweiterter Index (>0xFF): [Cmd][00][FA][Idx_hi][Idx_lo][Wert_hi][Wert_lo]
+# Frame format (7 data bytes):
+# Short index (<=0xFF):     [Cmd][00][Idx][Val_hi][Val_lo][00][00]
+# Extended index (>0xFF):   [Cmd][00][FA][Idx_hi][Idx_lo][Val_hi][Val_lo]
 #
-# Bestaetigte Zuordnungen:
+# Confirmed mappings:
 #   AUSSENTEMP                 Index 0x000C  CAN 0x180/0x100        /10 =>degC
 #   SPEICHERISTTEMP (WW-Ist)   Index 0x000E  CAN 0x180/0x100/0x201  /10 =>degC
 #   EINSTELL_SPEICHERSOLLTEMP  Index 0x0013  CAN 0x100/0x201        /10 =>degC
 #   RUECKLAUFISTTEMP           Index 0x0016  CAN 0x514              /10 =>degC
-#   MELDUNGSLISTE (Anlage)     Index 0x4F0B  CAN 0x100              Ganzzahl
-#   MELDUNGSLISTE (Waermepumpe)Index 0x4F0C  CAN 0x480              Ganzzahl
+# MELDUNGSLISTE (system)     Index 0x4F0B  CAN 0x100              integer
+# MELDUNGSLISTE (heat pump)  Index 0x4F0C  CAN 0x480              integer
 #   VORLAUFISTTEMP WP          Index 0xFDF3  CAN 0x700/0x500        /10 =>degC
-#   RAUMTEMPERATUR (Fernfuehl.)Index 0x4EC7  CAN 0x401              /10 =>degC
-#   RAUMLUFTFEUCHTE (Fernfuehl)Index 0x4EC8  CAN 0x401              /10 =>%
-#   BETRIEBSART                Index 0x4F1B  CAN 0x100/0x480        1=Bereitschaft,2=Programm,
-#                                                                    3=Komfort,4=Eco,5=Warmwasser,6=Not
-#   STEIGUNG HEIZKURVE         Index 0x4F2B  CAN 0x100/0x601        /100 => Steigung (z.B. 40=>0,40)
+# RAUMTEMPERATUR (remote sensor) Index 0x4EC7  CAN 0x401           /10 =>degC
+# RAUMLUFTFEUCHTE (remote sensor) Index 0x4EC8  CAN 0x401          /10 =>%
+# BETRIEBSART                Index 0x4F1B  CAN 0x100/0x480        1=standby,2=program,
+# 3=comfort,4=eco,5=hot water,6=emergency
+# STEIGUNG HEIZKURVE         Index 0x4F2B  CAN 0x100/0x601        /100 => slope (e.g. 40=>0.40)
 #   KOMFORTTEMPERATUR (HK)     Index 0x4EB8  CAN 0x100/0x601        /10 =>degC
 #   ECO-TEMPERATUR (HK)        Index 0x4EB9  CAN 0x100/0x601        /10 =>degC
 #
-# Aktives Polling: RUECKLAUFISTTEMP und WW-SOLL werden nur bei
-# Menue-Aufruf am WPM oder Wertaenderung gesendet. Damit wir nicht
-# ans Display gehen muessen, fragen wir sie selbst periodisch ab,
-# ueber CAN-ID 0x680 ("PC"/ComfortSoft-Kanal, laut Doku fuer externe
-# Tools reserviert und bei uns unbenutzt -> keine Kollision mit
-# echten Geraeten auf dem Bus).
+# Active polling: RUECKLAUFISTTEMP and WW-SOLL are only sent on
+# menu access at the WPM or on value change. So we don't have to
+# go to the display, we poll them ourselves periodically,
+# over CAN ID 0x680 ("PC"/ComfortSoft channel, reserved per docs for external
+# tools and unused by us -> no collision with
+# real devices on the bus).
 # =========================================================================
 
 globals:
@@ -87,8 +87,8 @@ globals:
     type: int16_t
     restore_value: false
     initial_value: '0'
-  # Energiezaehler: MWh-Teil zwischenspeichern, um ihn beim Eintreffen des
-  # kWh-Teils zum Gesamtwert (kWh = MWh*1000 + kWh) zu kombinieren.
+  # Energy counter: buffer the MWh part to combine it, when the
+  # kWh part arrives, into the total (kWh = MWh*1000 + kWh).
   - id: g_wm_heiz_vd_mwh
     type: int16_t
     restore_value: false
@@ -113,7 +113,7 @@ globals:
     type: int16_t
     restore_value: false
     initial_value: '0'
-  # Gesamtsystem 1-12M (Manager 0x480): MWh-Teil zwischenspeichern.
+  # Whole system 1-12M (manager 0x480): buffer the MWh part.
   - id: g_gs_wm_heiz_mwh
     type: int16_t
     restore_value: false
@@ -130,13 +130,13 @@ globals:
     type: int16_t
     restore_value: false
     initial_value: '0'
-  # Verdichter-Starts: Tausender-Teil (0x4EF0) zwischenspeichern, mit
-  # 0x4EF1 zum Gesamtwert (Starts = 0x4EF0*1000 + 0x4EF1) kombinieren.
+  # Compressor starts: buffer the thousands part (0x4EF0), combine with
+  # 0x4EF1 into the total (starts = 0x4EF0*1000 + 0x4EF1).
   - id: g_starts_vd_k
     type: int16_t
     restore_value: false
     initial_value: '0'
-  # Gesamtsystem 13-24M (Manager 0x480): MWh-Teil zwischenspeichern.
+  # Whole system 13-24M (manager 0x480): buffer the MWh part.
   - id: g_gs_wm_heiz_mwh_24
     type: int16_t
     restore_value: false
@@ -153,10 +153,10 @@ globals:
     type: int16_t
     restore_value: false
     initial_value: '0'
-  # --- Betriebsmodus & Debug (gestaffelter Sicherheits-/Zugriffsmodus) ---
-  # g_mode: 0=nur lauschen (kein TX), 1=lesen/pollen (nur Lese-Anfragen),
-  #         2=Vollzugriff (Schreiben). Default 1. Steuert Poller + Guards.
-  # g_debug: optionaler Roh-Frame-Dump im Log (per Switch schaltbar).
+  # --- Operating mode & debug (staggered safety/access mode) ---
+  # g_mode: 0=listen only (no TX), 1=read/poll (read requests only),
+  # 2=full access (writing). Default 1. Controls poller + guards.
+  # g_debug: optional raw-frame dump in the log (toggled via switch).
   - id: g_mode
     type: int
     restore_value: true
@@ -274,9 +274,9 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
 
-  # Minimal-Temperatur HK (0x4EA7) wird als Text-Sensor dargestellt
-  # ("Aus" bzw. "18.0 °C"), siehe text_sensor-Block. Gesetzt ueber den
-  # Schieber "Minimal Temperatur Heizkreis setzen" (0 = Aus).
+  # Minimum temperature HC (0x4EA7) is shown as a text sensor
+  # ("Off" or "18.0 °C"), see text_sensor block. Set via the
+  # slider "Minimal Temperatur Heizkreis setzen" (0 = Off).
   - platform: template
     name: "Raumeinfluss Heizkreis"
     entity_category: diagnostic
@@ -285,9 +285,9 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
 
-  # --- Kuehlen (Menue Einstellungen->Kuehlen), 30.07.2026 geraetegelesen ---
-  # Kuehlkreis 1 liegt auf Modul 0x601 (wie Heizkurve); Hysterese/Leistung
-  # auf eigenen Modulen (0x180/0x480). Nur-Lese-Sensoren, kein Schreiben.
+  # --- Cooling (menu Settings->Cooling), read from device 30.07.2026 ---
+  # Cooling circuit 1 is on module 0x601 (like the heating curve); hysteresis/power
+  # on their own modules (0x180/0x480). Read-only sensors, no writing.
   - platform: template
     name: "Raumsolltemperatur Kuehlen"
     entity_category: diagnostic
@@ -330,11 +330,11 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
 
-  # --- Energiezaehler (Summe seit Inbetriebnahme) ---
-  # Kombiniert aus MWh- und kWh-Register (kWh = MWh*1000 + kWh).
-  # device_class energy + total_increasing => direkt im HA-Energy-Dashboard.
-  # Bestaetigt 29.07.2026 (Sniffer + Display-Gegencheck), Antwort auf 0x500.
-  # 2WE = zweiter Waermeerzeuger = elektrische Nacherwaermung (NHZ).
+  # --- Energy counters (total since commissioning) ---
+  # Combined from MWh and kWh registers (kWh = MWh*1000 + kWh).
+  # device_class energy + total_increasing => directly usable in the HA energy dashboard.
+  # Confirmed 29.07.2026 (sniffer + display cross-check), answer on 0x500.
+  # 2WE = second heat generator = electric booster heater (NHZ).
   - platform: template
     name: "Waermemenge Heizen VD"
     entity_category: diagnostic
@@ -389,10 +389,10 @@ sensor:
     state_class: total_increasing
     accuracy_decimals: 0
 
-  # --- Gesamtsystem-Energiebilanz, rollende letzte 12 Monate (Manager 0x480) ---
-  # Kombiniert MWh+kWh. Rollendes Fenster -> state_class measurement (kann
-  # sinken, daher NICHT total_increasing). Display-verifiziert 29.07.2026
-  # (Info->Energiebilanz->Gesamtsystem). COP wird HA-seitig berechnet.
+  # --- Whole-system energy balance, rolling last 12 months (manager 0x480) ---
+  # Combines MWh+kWh. Rolling window -> state_class measurement (can
+  # decrease, hence NOT total_increasing). Display-verified 29.07.2026
+  # (Info->Energy balance->Whole system). COP is computed on the HA side.
   - platform: template
     name: "Gesamt Waermemenge Heizen 12M"
     entity_category: diagnostic
@@ -429,8 +429,8 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
 
-  # --- Laufzeiten (IWS 0x514), Indizes 29.07.2026 display-bestaetigt ---
-  # Betriebsstunden -> nur steigend (total_increasing), device_class duration.
+  # --- Runtimes (IWS 0x514), indices display-confirmed 29.07.2026 ---
+  # Operating hours -> only increasing (total_increasing), device_class duration.
   - platform: template
     name: "Laufzeit VD Heizen"
     entity_category: diagnostic
@@ -480,7 +480,7 @@ sensor:
     state_class: total_increasing
     accuracy_decimals: 0
 
-  # --- Starts (IWS 0x514): Verdichter, Split 0x4EF0*1000 + 0x4EF1 ---
+  # --- Starts (IWS 0x514): compressor, split 0x4EF0*1000 + 0x4EF1 ---
   - platform: template
     name: "Verdichter Starts"
     entity_category: diagnostic
@@ -488,9 +488,9 @@ sensor:
     state_class: total_increasing
     accuracy_decimals: 0
 
-  # --- Prozessdaten-Vorlauftemperatur (IWS 0x514, Index 0x01D6) ---
-  # Interner WP-Vorlauf (Elster WPVORLAUFIST); kann mit "Vorlauftemperatur
-  # Waermepumpe" (0xFDF3) deckungsgleich sein - hier separat als Prozessdatum.
+  # --- Process-data flow temperature (IWS 0x514, index 0x01D6) ---
+  # Internal HP flow (Elster WPVORLAUFIST); may be identical to "Vorlauftemperatur
+  # Waermepumpe" (0xFDF3) - kept separate here as process data.
   - platform: template
     name: "Vorlauftemperatur Prozessdaten"
     entity_category: diagnostic
@@ -500,8 +500,8 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
 
-  # --- Gesamtsystem-Energiebilanz 13-24M (Manager 0x480) ---
-  # Vorjahresfenster, rollend -> measurement (nicht total_increasing).
+  # --- Whole-system energy balance 13-24M (manager 0x480) ---
+  # Previous-year window, rolling -> measurement (not total_increasing).
   - platform: template
     name: "Gesamt Waermemenge Heizen 13-24M"
     entity_category: diagnostic
@@ -535,9 +535,9 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
 
-  # --- Effizienz/COP (Manager 0x480, /100) - Geraete-eigene Werte ---
-  # Hinweis: fuer 1-12M gibt es zusaetzlich HA-seitig berechenbaren COP aus
-  # Waerme/Strom; hier die Anzeige-Werte des Geraets direkt.
+  # --- Efficiency/COP (manager 0x480, /100) - device's own values ---
+  # Note: for 1-12M there is additionally a COP computable on the HA side from
+  # heat/power; here the device's displayed values directly.
   - platform: template
     name: "Effizienz Heizen 12M"
     entity_category: diagnostic
@@ -557,8 +557,8 @@ sensor:
     state_class: measurement
     accuracy_decimals: 2
 
-  # --- Prozessdaten (IWS 0x514), bestaetigt 29.07.2026 ---
-  # Kaeltekreis-Temperaturen
+  # --- Process data (IWS 0x514), confirmed 29.07.2026 ---
+  # Refrigerant-circuit temperatures
   - platform: template
     name: "Verdampfertemperatur"
     entity_category: diagnostic
@@ -604,7 +604,7 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
 
-  # Kaeltekreis-Druecke (/100 bar)
+  # Refrigerant-circuit pressures (/100 bar)
   - platform: template
     name: "Druck Niederdruck"
     entity_category: diagnostic
@@ -632,7 +632,7 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
 
-  # Inverter / Verdichter
+  # Inverter / compressor
   - platform: template
     name: "Strom Inverter"
     entity_category: diagnostic
@@ -651,7 +651,7 @@ sensor:
     state_class: measurement
     accuracy_decimals: 1
 
-  # Ist/Soll-Zuordnung 0x06EB/0x06EC noch nicht verifiziert (siehe docs)
+  # actual/target mapping 0x06EB/0x06EC not yet verified (see docs)
   - platform: template
     name: "Istdrehzahl Verdichter"
     entity_category: diagnostic
@@ -670,7 +670,7 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
 
-  # Waermequelle (Sole)
+  # Heat source (brine)
   - platform: template
     name: "Waermequelle Vorlauftemperatur"
     entity_category: diagnostic
@@ -712,7 +712,7 @@ text_sensor:
     entity_category: diagnostic
     id: betriebsart_text
 
-  # --- Kuehlen: Schalter/Enums (30.07.2026 wert-bestaetigt) ---
+  # --- Cooling: switches/enums (values confirmed 30.07.2026) ---
   - platform: template
     name: "Kuehlen"
     entity_category: diagnostic
@@ -726,8 +726,8 @@ text_sensor:
     entity_category: diagnostic
     id: kuehlart_text
 
-  # Minimal-Temperatur HK (0x4EA7) als Text: "Aus" (Sonderwert 0x9000)
-  # oder die Temperatur ("18.0 °C"). Gesetzt ueber den gleichnamigen Schieber.
+  # Minimum temperature HC (0x4EA7) as text: "Off" (special value 0x9000)
+  # or the temperature ("18.0 °C"). Set via the slider of the same name.
   - platform: template
     name: "Minimal Temperatur Heizkreis"
     entity_category: diagnostic
@@ -750,50 +750,50 @@ canbus:
 
               if (x.size() < 7) return;
 
-              // WICHTIG (Fix 21.07.2026): Lese-ANFRAGEN enthalten im
-              // Wertefeld immer 0 und duerfen NICHT als Messwert publiziert
-              // werden. Anfragen erkennt man am unteren Halbbyte des
-              // Cmd-Bytes == 1 (z.B. 0x41, 0xA1, 0x91, 0x31). Antworten/
-              // Broadcasts haben dort 0 oder 2 (z.B. 0x22, 0x20, 0x80).
-              // Ohne diesen Filter sprangen Sensoren sporadisch auf 0,
-              // sobald die WPM intern denselben Index angefragt hat.
+              // IMPORTANT (fix 21.07.2026): read REQUESTS always carry
+              // 0 in the value field and must NOT be published as a
+              // measurement. Requests are recognized by the lower nibble of the
+              // Cmd byte == 1 (e.g. 0x41, 0xA1, 0x91, 0x31). Answers/
+              // broadcasts have 0 or 2 there (e.g. 0x22, 0x20, 0x80).
+              // Without this filter sensors sporadically jumped to 0,
+              // whenever the WPM internally requested the same index.
               if ((x[0] & 0x0F) == 0x01) return;
 
-              // Cmd-Byte wird für uns nicht gebraucht, nur Index+Wert
+              // Cmd byte is not needed by us, only index+value
               uint16_t idx;
               int16_t val;
 
               if (x[2] == 0xFA) {
-                // Erweiterter Index: Byte 3-4 = Index, Byte 5-6 = Wert
+                // Extended index: byte 3-4 = index, byte 5-6 = value
                 idx = (x[3] << 8) | x[4];
                 val = (int16_t)((x[5] << 8) | x[6]);
               } else {
-                // Kurzer Index: Byte 2 = Index, Byte 3-4 = Wert
+                // Short index: byte 2 = index, byte 3-4 = value
                 idx = x[2];
                 val = (int16_t)((x[3] << 8) | x[4]);
               }
 
-              // --- AUSSENTEMP: Index 0x000C auf 0x180 oder 0x100 ---
+              // --- AUSSENTEMP: index 0x000C on 0x180 or 0x100 ---
               if (idx == 0x000C && (can_id == 0x180 || can_id == 0x100)) {
                 id(aussentemperatur).publish_state(val / 10.0f);
               }
 
-              // --- SPEICHERISTTEMP (WW-Ist): Index 0x000E auf 0x180/0x100/0x201 ---
+              // --- SPEICHERISTTEMP (HW actual): index 0x000E on 0x180/0x100/0x201 ---
               if (idx == 0x000E && (can_id == 0x180 || can_id == 0x100 || can_id == 0x201)) {
                 id(ww_isttemperatur).publish_state(val / 10.0f);
               }
 
-              // --- EINSTELL_SPEICHERSOLLTEMP: Index 0x0013 auf 0x100/0x201 ---
+              // --- EINSTELL_SPEICHERSOLLTEMP: index 0x0013 on 0x100/0x201 ---
               if (idx == 0x0013 && (can_id == 0x100 || can_id == 0x201)) {
                 id(ww_solltemperatur).publish_state(val / 10.0f);
               }
 
-              // --- RUECKLAUFISTTEMP: Index 0x0016 auf 0x514 ---
+              // --- RUECKLAUFISTTEMP: index 0x0016 on 0x514 ---
               if (idx == 0x0016 && can_id == 0x514) {
                 id(ruecklauftemperatur).publish_state(val / 10.0f);
               }
 
-              // --- MELDUNGSLISTE: Index 0x4F0B (Anlage) / 0x4F0C (Waermepumpe) ---
+              // --- MELDUNGSLISTE: index 0x4F0B (system) / 0x4F0C (heat pump) ---
               if (idx == 0x4F0B && can_id == 0x100) {
                 id(meldungsliste_anlage).publish_state(val);
               }
@@ -801,12 +801,12 @@ canbus:
                 id(meldungsliste_wp).publish_state(val);
               }
 
-              // --- VORLAUFISTTEMP WP: Index 0xFDF3 auf 0x700/0x500 ---
+              // --- VORLAUFISTTEMP HP: index 0xFDF3 on 0x700/0x500 ---
               if (idx == 0xFDF3 && (can_id == 0x700 || can_id == 0x500)) {
                 id(vorlauftemperatur_wp).publish_state(val / 10.0f);
               }
 
-              // --- RAUMTEMPERATUR / RAUMLUFTFEUCHTE: Index 0x4EC7/0x4EC8 auf 0x401 ---
+              // --- RAUMTEMPERATUR / RAUMLUFTFEUCHTE: index 0x4EC7/0x4EC8 on 0x401 ---
               if (idx == 0x4EC7 && can_id == 0x401) {
                 id(raumtemperatur).publish_state(val / 10.0f);
               }
@@ -814,8 +814,8 @@ canbus:
                 id(raumluftfeuchte).publish_state(val / 10.0f);
               }
 
-              // --- BETRIEBSART: Index 0x4F1B auf 0x100/0x480 ---
-              // 1=Bereitschaft, 2=Programm, 3=Komfort, 4=Eco, 5=Warmwasser, 6=Not
+              // --- BETRIEBSART: index 0x4F1B on 0x100/0x480 ---
+              // 1=standby, 2=program, 3=comfort, 4=eco, 5=hot water, 6=emergency
               if (idx == 0x4F1B && (can_id == 0x100 || can_id == 0x480)) {
                 id(betriebsart_code).publish_state(val);
                 id(last_betriebsart) = val;
@@ -830,24 +830,24 @@ canbus:
                   default: mode_name = "Unbekannt (" + std::to_string(val) + ")"; break;
                 }
                 id(betriebsart_text).publish_state(mode_name);
-                // Dropdown nur bei den 5 steuerbaren Optionen mitziehen
-                // (Not-Betrieb ist bewusst nicht im select enthalten)
+                // Sync the dropdown only for the 5 controllable options
+                // (emergency mode is deliberately excluded from the select)
                 if (val >= 1 && val <= 5) {
                   id(betriebsart_select).publish_state(mode_name);
                 }
               }
 
-              // --- STEIGUNG HEIZKURVE: Index 0x4F2B auf 0x100/0x601 ---
+              // --- STEIGUNG HEIZKURVE: index 0x4F2B on 0x100/0x601 ---
               if (idx == 0x4F2B && (can_id == 0x100 || can_id == 0x601)) {
                 id(steigung_heizkurve).publish_state(val / 100.0f);
                 id(last_steigung_heizkurve) = val;
                 id(steigung_heizkurve_set).publish_state(val / 100.0f);
               }
 
-              // --- KOMFORTTEMPERATUR / ECO-TEMPERATUR Heizkreis: Index 0x4EB8/0x4EB9 auf 0x100/0x601 ---
-              // Schreiben ueber 0x680 mit C0 01 FA 4E B8/B9 (Modul 0x601,
-              // Nibble 0 = Setzen), abgeleitet aus dem bestaetigten Heizkurven-
-              // Write. set-Entities unten; Rueckmeldung wird hier gespiegelt.
+              // --- KOMFORTTEMPERATUR / ECO-TEMPERATUR heating circuit: index 0x4EB8/0x4EB9 on 0x100/0x601 ---
+              // Write over 0x680 with C0 01 FA 4E B8/B9 (module 0x601,
+              // nibble 0 = set), derived from the confirmed heating-curve
+              // write. set entities below; the report is mirrored here.
               if (idx == 0x4EB8 && (can_id == 0x100 || can_id == 0x601)) {
                 id(komforttemperatur_hk).publish_state(val / 10.0f);
                 id(komforttemperatur_hk_set).publish_state(val / 10.0f);
@@ -857,9 +857,9 @@ canbus:
                 id(ecotemperatur_hk_set).publish_state(val / 10.0f);
               }
 
-              // --- MINIMAL TEMPERATUR HK: Index 0x4EA7 auf 0x100/0x601 ---
-              // "Aus" wird als eigener Sonderwert 0x9000 (-28672) uebertragen.
-              // Lesesensor -> NaN/unavailable, Schieber -> 0 (= "Aus"-Position).
+              // --- MINIMAL TEMPERATUR HC: index 0x4EA7 on 0x100/0x601 ---
+              // "Off" is transmitted as a dedicated special value 0x9000 (-28672).
+              // Read sensor -> NaN/unavailable, slider -> 0 (= "Off" position).
               if (idx == 0x4EA7 && (can_id == 0x100 || can_id == 0x601)) {
                 if (val == -28672) {
                   id(min_temp_hk_txt).publish_state("Aus");
@@ -871,15 +871,15 @@ canbus:
                   id(min_temp_hk_set).publish_state(val / 10.0f);
                 }
               }
-              // --- RAUMEINFLUSS HK: Index 0x4EA4 auf 0x100/0x601 (direkt %) ---
+              // --- RAUMEINFLUSS HC: index 0x4EA4 on 0x100/0x601 (percent directly) ---
               if (idx == 0x4EA4 && (can_id == 0x100 || can_id == 0x601)) {
                 id(raumeinfluss_hk).publish_state(val);
                 id(raumeinfluss_hk_set).publish_state(val);
               }
 
-              // --- KUEHLEN: Kuehlkreis 1 (Modul 0x601, wie Heizkreis) ---
-              // Indizes 30.07.2026 geraetegelesen (logs/kuehlen-read.log,
-              // logs/kuehlart-enum.log). Nur Lesen.
+              // --- COOLING: cooling circuit 1 (module 0x601, like heating circuit) ---
+              // Indices read from device 30.07.2026 (logs/kuehlen-read.log,
+              // logs/kuehlart-enum.log). Read only.
               if (idx == 0x4F04 && (can_id == 0x100 || can_id == 0x601)) {
                 id(raumsolltemp_kuehlen).publish_state(val / 10.0f);
                 id(raumsolltemp_kuehlen_set).publish_state(val / 10.0f);
@@ -907,9 +907,9 @@ canbus:
                 if (val == 0 || val == 1) id(kuehlart_select).publish_state(art);
               }
 
-              // --- KUEHLEN: uebergeordneter Schalter + Grundeinstellung ---
-              // Diese liegen NICHT auf 0x601: 0x4F07/0x4F00 auf 0x180,
-              // 0x7A40 auf 0x480 (30.07.2026 bestaetigt).
+              // --- COOLING: top-level switch + base settings ---
+              // These are NOT on 0x601: 0x4F07/0x4F00 on 0x180,
+              // 0x7A40 on 0x480 (confirmed 30.07.2026).
               if (idx == 0x4F07 && (can_id == 0x100 || can_id == 0x180)) {
                 id(kuehlen_status).publish_state(val == 1 ? "Ein" : "Aus");
                 id(kuehlen_select).publish_state(val == 1 ? "Ein" : "Aus");
@@ -922,46 +922,46 @@ canbus:
                 id(leistung_kuehlen).publish_state(val / 10.0f);
               }
 
-              // --- ENERGIEZAEHLER (Summe) auf CAN-ID 0x514 (IWS) ---
-              // WICHTIG (Korrektur 29.07. abends): dieselben Indizes existieren
-              // auch auf 0x500 (Heizmodul) mit ABWEICHENDEN Werten. Die
-              // IWS-Werte (0x514) entsprechen dem Display inkl. NHZ-Zaehlern,
-              // deshalb wird hier NUR 0x514 dekodiert.
-              // Zwei Register je Zaehler: MWh (ganze MWh) + kWh (0-999 Rest).
-              // MWh-Teil merken, beim kWh-Teil kombiniert publizieren:
-              // kWh_gesamt = MWh*1000 + kWh.
-              // Waermemenge Heizen VD: MWh 0x0931 / kWh 0x0930
+              // --- ENERGY COUNTERS (total) on CAN ID 0x514 (IWS) ---
+              // IMPORTANT (correction 29.07. evening): the same indices also exist
+              // on 0x500 (heating module) with DIFFERING values. The
+              // IWS values (0x514) match the display incl. NHZ counters,
+              // so ONLY 0x514 is decoded here.
+              // Two registers per counter: MWh (whole MWh) + kWh (0-999 remainder).
+              // Remember the MWh part, publish combined when the kWh part arrives:
+              // kWh_total = MWh*1000 + kWh.
+              // Heat quantity heating compressor: MWh 0x0931 / kWh 0x0930
               if (idx == 0x0931 && can_id == 0x514) { id(g_wm_heiz_vd_mwh) = val; }
               if (idx == 0x0930 && can_id == 0x514) {
                 id(wm_heiz_vd).publish_state((float)id(g_wm_heiz_vd_mwh) * 1000.0f + val);
               }
-              // Waermemenge Warmwasser VD: MWh 0x092D / kWh 0x092C
+              // Heat quantity hot water compressor: MWh 0x092D / kWh 0x092C
               if (idx == 0x092D && can_id == 0x514) { id(g_wm_ww_vd_mwh) = val; }
               if (idx == 0x092C && can_id == 0x514) {
                 id(wm_ww_vd).publish_state((float)id(g_wm_ww_vd_mwh) * 1000.0f + val);
               }
-              // Waermemenge Heizen NHZ (2WE): MWh 0x0929 / kWh 0x0928
+              // Heat quantity heating NHZ (2WE): MWh 0x0929 / kWh 0x0928
               if (idx == 0x0929 && can_id == 0x514) { id(g_wm_heiz_nhz_mwh) = val; }
               if (idx == 0x0928 && can_id == 0x514) {
                 id(wm_heiz_nhz).publish_state((float)id(g_wm_heiz_nhz_mwh) * 1000.0f + val);
               }
-              // Waermemenge Warmwasser NHZ (2WE): MWh 0x0925 / kWh 0x0924
+              // Heat quantity hot water NHZ (2WE): MWh 0x0925 / kWh 0x0924
               if (idx == 0x0925 && can_id == 0x514) { id(g_wm_ww_nhz_mwh) = val; }
               if (idx == 0x0924 && can_id == 0x514) {
                 id(wm_ww_nhz).publish_state((float)id(g_wm_ww_nhz_mwh) * 1000.0f + val);
               }
-              // Stromaufnahme Heizen VD: MWh 0x0921 / kWh 0x0920
+              // Power consumption heating compressor: MWh 0x0921 / kWh 0x0920
               if (idx == 0x0921 && can_id == 0x514) { id(g_el_heiz_vd_mwh) = val; }
               if (idx == 0x0920 && can_id == 0x514) {
                 id(el_heiz_vd).publish_state((float)id(g_el_heiz_vd_mwh) * 1000.0f + val);
               }
-              // Stromaufnahme Warmwasser VD: MWh 0x091D / kWh 0x091C
+              // Power consumption hot water compressor: MWh 0x091D / kWh 0x091C
               if (idx == 0x091D && can_id == 0x514) { id(g_el_ww_vd_mwh) = val; }
               if (idx == 0x091C && can_id == 0x514) {
                 id(el_ww_vd).publish_state((float)id(g_el_ww_vd_mwh) * 1000.0f + val);
               }
 
-              // --- PROZESSDATEN auf CAN-ID 0x514 (IWS), bestaetigt 29.07.2026 ---
+              // --- PROCESS DATA on CAN ID 0x514 (IWS), confirmed 29.07.2026 ---
               if (idx == 0x07A9 && can_id == 0x514) { id(verdampfertemperatur).publish_state(val / 10.0f); }
               if (idx == 0x06D9 && can_id == 0x514) { id(verdichtereintrittstemp).publish_state(val / 10.0f); }
               if (idx == 0x0265 && can_id == 0x514) { id(heissgastemperatur).publish_state(val / 10.0f); }
@@ -972,8 +972,8 @@ canbus:
               if (idx == 0x02E2 && can_id == 0x514) { id(wp_volumenstrom).publish_state(val / 10.0f); }
               if (idx == 0x06B2 && can_id == 0x514) { id(strom_inverter).publish_state(val / 10.0f); }
               if (idx == 0x06B1 && can_id == 0x514) { id(spannung_inverter).publish_state(val / 10.0f); }
-              // Ist/Soll-Zuordnung der beiden Drehzahl-Register noch NICHT
-              // verifiziert (0x06EB/0x06EC, siehe docs) - bei Abgleich pruefen!
+              // actual/target mapping of the two speed registers NOT yet
+              // verified (0x06EB/0x06EC, see docs) - check when calibrating!
               if (idx == 0x06EB && can_id == 0x514) { id(istdrehzahl_verdichter).publish_state(val); }
               if (idx == 0x06EC && can_id == 0x514) { id(solldrehzahl_verdichter).publish_state(val); }
               if (idx == 0x4FA6 && can_id == 0x514) { id(wq_ruecklauf).publish_state(val / 10.0f); }
@@ -981,7 +981,7 @@ canbus:
               if (idx == 0x4FA8 && can_id == 0x514) { id(wq_druck).publish_state(val / 10.0f); }
               if (idx == 0x4FA9 && can_id == 0x514) { id(wq_pumpenleistung).publish_state(val / 10.0f); }
 
-              // --- Prozessdaten-Vorlauf + Laufzeiten + Starts (IWS 0x514) ---
+              // --- Process-data flow + runtimes + starts (IWS 0x514) ---
               if (idx == 0x01D6 && can_id == 0x514) { id(vorlauftemp_pd).publish_state(val / 10.0f); }
               if (idx == 0x4EFB && can_id == 0x514) { id(laufzeit_vd_heizen).publish_state(val); }
               if (idx == 0x4EFD && can_id == 0x514) { id(laufzeit_vd_ww).publish_state(val); }
@@ -989,36 +989,36 @@ canbus:
               if (idx == 0x025A && can_id == 0x514) { id(laufzeit_nhz2).publish_state(val); }
               if (idx == 0x0805 && can_id == 0x514) { id(laufzeit_nhz12).publish_state(val); }
               if (idx == 0x4F9A && can_id == 0x514) { id(laufzeit_passivkuehlung).publish_state(val); }
-              // Verdichter-Starts: 0x4EF0 (Tausender) puffern, mit 0x4EF1 kombinieren
+              // Compressor starts: buffer 0x4EF0 (thousands), combine with 0x4EF1
               if (idx == 0x4EF0 && can_id == 0x514) { id(g_starts_vd_k) = val; }
               if (idx == 0x4EF1 && can_id == 0x514) {
                 id(verdichter_starts).publish_state((float)id(g_starts_vd_k) * 1000.0f + val);
               }
 
-              // --- GESAMTSYSTEM 1-12M (Energiebilanz) auf CAN-ID 0x480 (Manager) ---
-              // MWh+kWh kombiniert, rollendes 12-Monats-Fenster.
-              // Waermemenge Heizen: MWh 0x5007 / kWh 0x5008
+              // --- WHOLE SYSTEM 1-12M (energy balance) on CAN ID 0x480 (manager) ---
+              // MWh+kWh combined, rolling 12-month window.
+              // Heat quantity heating: MWh 0x5007 / kWh 0x5008
               if (idx == 0x5007 && can_id == 0x480) { id(g_gs_wm_heiz_mwh) = val; }
               if (idx == 0x5008 && can_id == 0x480) {
                 id(gs_wm_heiz).publish_state((float)id(g_gs_wm_heiz_mwh) * 1000.0f + val);
               }
-              // Waermemenge Warmwasser: MWh 0x500F / kWh 0x5010
+              // Heat quantity hot water: MWh 0x500F / kWh 0x5010
               if (idx == 0x500F && can_id == 0x480) { id(g_gs_wm_ww_mwh) = val; }
               if (idx == 0x5010 && can_id == 0x480) {
                 id(gs_wm_ww).publish_state((float)id(g_gs_wm_ww_mwh) * 1000.0f + val);
               }
-              // Stromverbrauch Heizen: MWh 0x5013 / kWh 0x5014
+              // Power consumption heating: MWh 0x5013 / kWh 0x5014
               if (idx == 0x5013 && can_id == 0x480) { id(g_gs_strom_heiz_mwh) = val; }
               if (idx == 0x5014 && can_id == 0x480) {
                 id(gs_strom_heiz).publish_state((float)id(g_gs_strom_heiz_mwh) * 1000.0f + val);
               }
-              // Stromverbrauch Warmwasser: MWh 0x501B / kWh 0x501C
+              // Power consumption hot water: MWh 0x501B / kWh 0x501C
               if (idx == 0x501B && can_id == 0x480) { id(g_gs_strom_ww_mwh) = val; }
               if (idx == 0x501C && can_id == 0x480) {
                 id(gs_strom_ww).publish_state((float)id(g_gs_strom_ww_mwh) * 1000.0f + val);
               }
 
-              // --- GESAMTSYSTEM 13-24M + Effizienz auf CAN-ID 0x480 (Manager) ---
+              // --- WHOLE SYSTEM 13-24M + efficiency on CAN ID 0x480 (manager) ---
               if (idx == 0x502C && can_id == 0x480) { id(g_gs_wm_heiz_mwh_24) = val; }
               if (idx == 0x502D && can_id == 0x480) {
                 id(gs_wm_heiz_24).publish_state((float)id(g_gs_wm_heiz_mwh_24) * 1000.0f + val);
@@ -1035,13 +1035,13 @@ canbus:
               if (idx == 0x5037 && can_id == 0x480) {
                 id(gs_strom_ww_24).publish_state((float)id(g_gs_strom_ww_mwh_24) * 1000.0f + val);
               }
-              // Effizienz (÷100) - Geraete-eigene Anzeige-Werte
+              // Efficiency (÷100) - device's own displayed values
               if (idx == 0x501E && can_id == 0x480) { id(gs_cop_heiz_12).publish_state(val / 100.0f); }
               if (idx == 0x5022 && can_id == 0x480) { id(gs_cop_ww_12).publish_state(val / 100.0f); }
               if (idx == 0x503A && can_id == 0x480) { id(gs_cop_ww_24).publish_state(val / 100.0f); }
 
-              // Roh-/Decode-Log nur wenn Debug-Logging aktiv (Switch
-              // "Debug-Logging" -> g_debug). Sonst bleibt der Normalbetrieb ruhig.
+              // Raw/decode log only when debug logging is on (switch
+              // "Debug-Logging" -> g_debug). Otherwise normal operation stays quiet.
               if (id(g_debug)) {
                 ESP_LOGD("wpe_i", "id=0x%03X idx=0x%04X val=%d", can_id, idx, val);
                 char hexdump[32] = {0};
@@ -1053,7 +1053,7 @@ canbus:
                 ESP_LOGD("wpe_i_raw", "id=0x%03X raw=%s", can_id, hexdump);
               }
 
-# Aktives Polling ueber den PC/ComfortSoft-Kanal (0x680)
+# Active polling over the PC/ComfortSoft channel (0x680)
 interval:
   - interval: 60s
     then:
@@ -1062,48 +1062,48 @@ interval:
             lambda: 'return id(g_mode) >= 1;'
           then:
             - lambda: |-
-                // Anfrage RUECKLAUFISTTEMP (Index 0x16, kurzer Index)
+                // Request RUECKLAUFISTTEMP (index 0x16, short index)
                 std::vector<uint8_t> req_ruecklauf = {0xA1, 0x14, 0x16, 0x00, 0x00, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, req_ruecklauf);
             - delay: 200ms
             - lambda: |-
-                // Anfrage EINSTELL_SPEICHERSOLLTEMP (Index 0x13, kurzer Index)
-                // Header 41 01 ist das echte, im Log beobachtete Anfragemuster
-                // (die WPM selbst nutzt CAN-ID 0x100 dafuer - das vermeiden wir
-                // wegen Kollisionsgefahr und bleiben bei unserer freien 0x680)
+                // Request EINSTELL_SPEICHERSOLLTEMP (index 0x13, short index)
+                // Header 41 01 is the actual request pattern observed in the log
+                // (the WPM itself uses CAN ID 0x100 for it - we avoid that
+                // due to collision risk and stay on our free 0x680)
                 std::vector<uint8_t> req_wwsoll = {0x41, 0x01, 0x13, 0x00, 0x00, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, req_wwsoll);
             - delay: 200ms
             - lambda: |-
-                // Anfrage BETRIEBSART (Index 0x4F1B) - Fix 29.07. abends:
-                // Alter Header 41 01 adressierte 0x201 (Bedienteil), das mit
-                // -32768 antwortete. Betriebsart liegt aber auf dem Manager 0x480
-                // -> Header 91 00 = ((0x480>>3)&0xF0)+1 / (0x480&0x1F). 91 00 ist
-                // heute am Gesamtsystem (ebenfalls 0x480) geraeteverifiziert.
+                // Request BETRIEBSART (index 0x4F1B) - fix 29.07. evening:
+                // Old header 41 01 addressed 0x201 (control panel), which replied
+                // with -32768. But the operating mode lives on the manager 0x480
+                // -> header 91 00 = ((0x480>>3)&0xF0)+1 / (0x480&0x1F). 91 00 is
+                // device-verified today on the whole system (also 0x480).
                 std::vector<uint8_t> req_betriebsart = {0x91, 0x00, 0xFA, 0x4F, 0x1B, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, req_betriebsart);
             - delay: 200ms
             - lambda: |-
-                // Anfragen STEIGUNG HEIZKURVE / KOMFORT- / ECO-TEMPERATUR
-                // (Index 0x4F2B / 0x4EB8 / 0x4EB9) ueber das Mischermodul 0x601.
-                // Header C1 01 = ((0x601>>3)&0xF0)+1 / (0x601&0x1F). Aus der heute
-                // bestaetigten Adressierungsformel abgeleitet, am Geraet zu pruefen.
+                // Request STEIGUNG HEIZKURVE / KOMFORT / ECO TEMPERATURE
+                // (index 0x4F2B / 0x4EB8 / 0x4EB9) via the mixer module 0x601.
+                // Header C1 01 = ((0x601>>3)&0xF0)+1 / (0x601&0x1F). Derived from the
+                // addressing formula confirmed today, to be checked on the device.
                 std::vector<uint8_t> req_steig = {0xC1, 0x01, 0xFA, 0x4F, 0x2B, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, req_steig);
                 std::vector<uint8_t> req_komf = {0xC1, 0x01, 0xFA, 0x4E, 0xB8, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, req_komf);
                 std::vector<uint8_t> req_eco = {0xC1, 0x01, 0xFA, 0x4E, 0xB9, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, req_eco);
-                // MINIMAL TEMPERATUR (0x4EA7) + RAUMEINFLUSS (0x4EA4), auch 0x601
+                // MINIMAL TEMPERATUR (0x4EA7) + RAUMEINFLUSS (0x4EA4), also 0x601
                 std::vector<uint8_t> req_mintemp = {0xC1, 0x01, 0xFA, 0x4E, 0xA7, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, req_mintemp);
                 std::vector<uint8_t> req_raum = {0xC1, 0x01, 0xFA, 0x4E, 0xA4, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, req_raum);
             - lambda: |-
-                // --- Kuehlen-Parameter ueber 0x680 abfragen ---
-                // Kuehlkreis 1 auf Modul 0x601 (Header C1 01 = generate_read_id(0x601),
-                // geraeteverifiziert): Raumsoll 0x4F04, Steigung 0x4FB9, Starttemp
-                // 0x4FBE, Kuehlkreis Ein/Aus 0x4F08, KuehlART 0x4F05.
+                // --- Poll cooling parameters over 0x680 ---
+                // Cooling circuit 1 on module 0x601 (header C1 01 = generate_read_id(0x601),
+                // device-verified): room target 0x4F04, slope 0x4FB9, start temp
+                // 0x4FBE, cooling circuit on/off 0x4F08, cooling type 0x4F05.
                 std::vector<uint8_t> k1 = {0xC1, 0x01, 0xFA, 0x4F, 0x04, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, k1);
                 std::vector<uint8_t> k2 = {0xC1, 0x01, 0xFA, 0x4F, 0xB9, 0x00, 0x00};
@@ -1114,70 +1114,70 @@ interval:
                 id(my_canbus).send_data(0x680, false, k4);
                 std::vector<uint8_t> k5 = {0xC1, 0x01, 0xFA, 0x4F, 0x05, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, k5);
-                // Leistung 0x7A40 auf Modul 0x480 (Header 91 00 = generate_read_id(0x480),
-                // bereits fuer Betriebsart/Gesamtsystem geraeteverifiziert).
+                // Power 0x7A40 on module 0x480 (header 91 00 = generate_read_id(0x480),
+                // already device-verified for operating mode/whole system).
                 std::vector<uint8_t> k6 = {0x91, 0x00, 0xFA, 0x7A, 0x40, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, k6);
-                // KUEHLEN-Schalter 0x4F07 + Hysterese 0x4F00 auf Modul 0x180
-                // (Header 31 00 = generate_read_id(0x180)). GERAETEBESTAETIGT
-                // (30.07.2026, logs/kuehlen-verify.log): beide Indizes werden im
-                // Poll-Takt beantwortet.
+                // COOLING switch 0x4F07 + hysteresis 0x4F00 on module 0x180
+                // (header 31 00 = generate_read_id(0x180)). DEVICE-CONFIRMED
+                // (30.07.2026, logs/kuehlen-verify.log): both indices are answered
+                // at the poll interval.
                 std::vector<uint8_t> k7 = {0x31, 0x00, 0xFA, 0x4F, 0x07, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, k7);
                 std::vector<uint8_t> k8 = {0x31, 0x00, 0xFA, 0x4F, 0x00, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, k8);
-            # --- Energiezaehler (IWS 0x514) ueber 0x680 abfragen ---
-            # Header A1 14 = IWS-Anfrage, geraeteverifiziert (Ruecklauf-Poll,
-            # IWS antwortet mit Cmd D2 auf 0x514). Korrektur 29.07.: die IWS
-            # fuehrt die Display-Zaehler inkl. NHZ; das Heizmodul (A1 00/0x500)
-            # lieferte abweichende Werte. Pro Zaehler zuerst MWh, dann kWh
-            # (Reihenfolge sichert korrekte Kombination).
+            # --- Poll energy counters (IWS 0x514) over 0x680 ---
+            # Header A1 14 = IWS request, device-verified (return poll,
+            # IWS answers with Cmd D2 on 0x514). Correction 29.07.: the IWS
+            # holds the display counters incl. NHZ; the heating module (A1 00/0x500)
+            # returned differing values. Per counter MWh first, then kWh
+            # (order ensures correct combination).
             - delay: 200ms
             - lambda: |-
-                // Waermemenge Heizen VD (MWh 0x0931 + kWh 0x0930)
+                // Heat quantity heating compressor (MWh 0x0931 + kWh 0x0930)
                 std::vector<uint8_t> r_mwh = {0xA1, 0x14, 0xFA, 0x09, 0x31, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0xA1, 0x14, 0xFA, 0x09, 0x30, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Waermemenge Warmwasser VD (MWh 0x092D + kWh 0x092C)
+                // Heat quantity hot water compressor (MWh 0x092D + kWh 0x092C)
                 std::vector<uint8_t> r_mwh = {0xA1, 0x14, 0xFA, 0x09, 0x2D, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0xA1, 0x14, 0xFA, 0x09, 0x2C, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Waermemenge Heizen NHZ (MWh 0x0929 + kWh 0x0928)
+                // Heat quantity heating NHZ (MWh 0x0929 + kWh 0x0928)
                 std::vector<uint8_t> r_mwh = {0xA1, 0x14, 0xFA, 0x09, 0x29, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0xA1, 0x14, 0xFA, 0x09, 0x28, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Waermemenge Warmwasser NHZ (MWh 0x0925 + kWh 0x0924)
+                // Heat quantity hot water NHZ (MWh 0x0925 + kWh 0x0924)
                 std::vector<uint8_t> r_mwh = {0xA1, 0x14, 0xFA, 0x09, 0x25, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0xA1, 0x14, 0xFA, 0x09, 0x24, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Stromaufnahme Heizen VD (MWh 0x0921 + kWh 0x0920)
+                // Power consumption heating compressor (MWh 0x0921 + kWh 0x0920)
                 std::vector<uint8_t> r_mwh = {0xA1, 0x14, 0xFA, 0x09, 0x21, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0xA1, 0x14, 0xFA, 0x09, 0x20, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Stromaufnahme Warmwasser VD (MWh 0x091D + kWh 0x091C)
+                // Power consumption hot water compressor (MWh 0x091D + kWh 0x091C)
                 std::vector<uint8_t> r_mwh = {0xA1, 0x14, 0xFA, 0x09, 0x1D, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0xA1, 0x14, 0xFA, 0x09, 0x1C, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
 
-  # --- Prozessdaten (IWS 0x514) ueber 0x680 abfragen ---
-  # Live-Werte (Kaeltekreis, Inverter, Waermequelle), eigener 60s-Poll.
-  # Gleicher IWS-Header A1 14 wie bei den Energiezaehlern.
+  # --- Poll process data (IWS 0x514) over 0x680 ---
+  # Live values (refrigerant circuit, inverter, heat source), own 60s poll.
+  # Same IWS header A1 14 as for the energy counters.
   - interval: 60s
     then:
       - if:
@@ -1185,76 +1185,76 @@ interval:
             lambda: 'return id(g_mode) >= 1;'
           then:
             - lambda: |-
-                // Kaeltekreis-Temperaturen Teil 1
-                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x07, 0xA9, 0x00, 0x00}; // Verdampfer
+                // Refrigerant-circuit temperatures part 1
+                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x07, 0xA9, 0x00, 0x00}; // Evaporator
                 id(my_canbus).send_data(0x680, false, r1);
-                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x06, 0xD9, 0x00, 0x00}; // Verdichtereintritt
+                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x06, 0xD9, 0x00, 0x00}; // Compressor inlet
                 id(my_canbus).send_data(0x680, false, r2);
-                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x02, 0x65, 0x00, 0x00}; // Heissgas
+                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x02, 0x65, 0x00, 0x00}; // Hot gas
                 id(my_canbus).send_data(0x680, false, r3);
             - delay: 200ms
             - lambda: |-
-                // Kaeltekreis-Temperaturen Teil 2 + Druecke
-                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x0A, 0x39, 0x00, 0x00}; // Verfluessiger
+                // Refrigerant-circuit temperatures part 2 + pressures
+                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x0A, 0x39, 0x00, 0x00}; // Condenser
                 id(my_canbus).send_data(0x680, false, r1);
-                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x0A, 0x37, 0x00, 0x00}; // Oelsumpf
+                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x0A, 0x37, 0x00, 0x00}; // Oil sump
                 id(my_canbus).send_data(0x680, false, r2);
-                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x07, 0xA7, 0x00, 0x00}; // Druck ND
+                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x07, 0xA7, 0x00, 0x00}; // Low pressure
                 id(my_canbus).send_data(0x680, false, r3);
-                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x07, 0xA6, 0x00, 0x00}; // Druck HD
+                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x07, 0xA6, 0x00, 0x00}; // High pressure
                 id(my_canbus).send_data(0x680, false, r4);
             - delay: 200ms
             - lambda: |-
-                // Volumenstrom + Inverter
-                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x02, 0xE2, 0x00, 0x00}; // Volumenstrom
+                // Flow rate + inverter
+                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x02, 0xE2, 0x00, 0x00}; // Flow rate
                 id(my_canbus).send_data(0x680, false, r1);
-                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x06, 0xB2, 0x00, 0x00}; // Strom Inverter
+                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x06, 0xB2, 0x00, 0x00}; // Inverter current
                 id(my_canbus).send_data(0x680, false, r2);
-                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x06, 0xB1, 0x00, 0x00}; // Spannung Inverter
+                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x06, 0xB1, 0x00, 0x00}; // Inverter voltage
                 id(my_canbus).send_data(0x680, false, r3);
-                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x06, 0xEB, 0x00, 0x00}; // Drehzahl (Ist?)
+                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x06, 0xEB, 0x00, 0x00}; // Speed (actual?)
                 id(my_canbus).send_data(0x680, false, r4);
-                std::vector<uint8_t> r5 = {0xA1, 0x14, 0xFA, 0x06, 0xEC, 0x00, 0x00}; // Drehzahl (Soll?)
+                std::vector<uint8_t> r5 = {0xA1, 0x14, 0xFA, 0x06, 0xEC, 0x00, 0x00}; // Speed (target?)
                 id(my_canbus).send_data(0x680, false, r5);
             - delay: 200ms
             - lambda: |-
-                // Waermequelle (Sole)
-                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x4F, 0xA6, 0x00, 0x00}; // WQ-Ruecklauf
+                // Heat source (brine)
+                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x4F, 0xA6, 0x00, 0x00}; // Heat-source return
                 id(my_canbus).send_data(0x680, false, r1);
-                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x4F, 0xA7, 0x00, 0x00}; // WQ-Vorlauf
+                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x4F, 0xA7, 0x00, 0x00}; // Heat-source flow
                 id(my_canbus).send_data(0x680, false, r2);
-                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x4F, 0xA8, 0x00, 0x00}; // WQ-Druck
+                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x4F, 0xA8, 0x00, 0x00}; // Heat-source pressure
                 id(my_canbus).send_data(0x680, false, r3);
-                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x4F, 0xA9, 0x00, 0x00}; // WQ-Pumpenleistung
+                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x4F, 0xA9, 0x00, 0x00}; // Heat-source pump power
                 id(my_canbus).send_data(0x680, false, r4);
             - delay: 200ms
             - lambda: |-
-                // Prozessdaten-Vorlauf (0x01D6) + Laufzeiten (Teil 1)
-                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x01, 0xD6, 0x00, 0x00}; // Vorlauf PD
+                // Process-data flow (0x01D6) + runtimes (part 1)
+                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x01, 0xD6, 0x00, 0x00}; // Flow (process data)
                 id(my_canbus).send_data(0x680, false, r1);
-                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x4E, 0xFB, 0x00, 0x00}; // Laufzeit VD Heizen
+                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x4E, 0xFB, 0x00, 0x00}; // Runtime compressor heating
                 id(my_canbus).send_data(0x680, false, r2);
-                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x4E, 0xFD, 0x00, 0x00}; // Laufzeit VD WW
+                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x4E, 0xFD, 0x00, 0x00}; // Runtime compressor hot water
                 id(my_canbus).send_data(0x680, false, r3);
-                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x02, 0x59, 0x00, 0x00}; // Laufzeit NHZ1
+                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x02, 0x59, 0x00, 0x00}; // Runtime NHZ1
                 id(my_canbus).send_data(0x680, false, r4);
-                std::vector<uint8_t> r5 = {0xA1, 0x14, 0xFA, 0x02, 0x5A, 0x00, 0x00}; // Laufzeit NHZ2
+                std::vector<uint8_t> r5 = {0xA1, 0x14, 0xFA, 0x02, 0x5A, 0x00, 0x00}; // Runtime NHZ2
                 id(my_canbus).send_data(0x680, false, r5);
             - delay: 200ms
             - lambda: |-
-                // Laufzeiten (Teil 2) + Verdichter-Starts (Tausender 0x4EF0 VOR Rest 0x4EF1)
-                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x08, 0x05, 0x00, 0x00}; // Laufzeit NHZ1/2
+                // Runtimes (part 2) + compressor starts (thousands 0x4EF0 BEFORE remainder 0x4EF1)
+                std::vector<uint8_t> r1 = {0xA1, 0x14, 0xFA, 0x08, 0x05, 0x00, 0x00}; // Runtime NHZ1/2
                 id(my_canbus).send_data(0x680, false, r1);
-                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x4F, 0x9A, 0x00, 0x00}; // Laufzeit Passivkuehlung
+                std::vector<uint8_t> r2 = {0xA1, 0x14, 0xFA, 0x4F, 0x9A, 0x00, 0x00}; // Runtime passive cooling
                 id(my_canbus).send_data(0x680, false, r2);
-                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x4E, 0xF0, 0x00, 0x00}; // Starts (Tausender)
+                std::vector<uint8_t> r3 = {0xA1, 0x14, 0xFA, 0x4E, 0xF0, 0x00, 0x00}; // Starts (thousands)
                 id(my_canbus).send_data(0x680, false, r3);
-                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x4E, 0xF1, 0x00, 0x00}; // Starts (Rest)
+                std::vector<uint8_t> r4 = {0xA1, 0x14, 0xFA, 0x4E, 0xF1, 0x00, 0x00}; // Starts (remainder)
                 id(my_canbus).send_data(0x680, false, r4);
 
-  # --- Gesamtsystem-Energiebilanz 1-12M (Manager 0x480) ueber 0x680 ---
-  # Jahreswerte aendern sich langsam -> eigener, langsamer Poll (300s).
-  # Header 91 00 = generate_read_id(0x480). Pro Wert zuerst MWh, dann kWh.
+  # --- Poll whole-system energy balance 1-12M (manager 0x480) over 0x680 ---
+  # Yearly values change slowly -> own, slow poll (300s).
+  # Header 91 00 = generate_read_id(0x480). Per value MWh first, then kWh.
   - interval: 300s
     then:
       - if:
@@ -1262,63 +1262,63 @@ interval:
             lambda: 'return id(g_mode) >= 1;'
           then:
             - lambda: |-
-                // Gesamt Waermemenge Heizen (MWh 0x5007 + kWh 0x5008)
+                // Total heat quantity heating (MWh 0x5007 + kWh 0x5008)
                 std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x07, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x08, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Gesamt Waermemenge Warmwasser (MWh 0x500F + kWh 0x5010)
+                // Total heat quantity hot water (MWh 0x500F + kWh 0x5010)
                 std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x0F, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x10, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Gesamt Stromverbrauch Heizen (MWh 0x5013 + kWh 0x5014)
+                // Total power consumption heating (MWh 0x5013 + kWh 0x5014)
                 std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x13, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x14, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Gesamt Stromverbrauch Warmwasser (MWh 0x501B + kWh 0x501C)
+                // Total power consumption hot water (MWh 0x501B + kWh 0x501C)
                 std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x1B, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x1C, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Gesamt Waermemenge Heizen 13-24M (MWh 0x502C + kWh 0x502D)
+                // Total heat quantity heating 13-24M (MWh 0x502C + kWh 0x502D)
                 std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x2C, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x2D, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Gesamt Waermemenge Warmwasser 13-24M (MWh 0x5030 + kWh 0x5031)
+                // Total heat quantity hot water 13-24M (MWh 0x5030 + kWh 0x5031)
                 std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x30, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x31, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Gesamt Stromverbrauch Heizen 13-24M (MWh 0x5032 + kWh 0x5033)
+                // Total power consumption heating 13-24M (MWh 0x5032 + kWh 0x5033)
                 std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x32, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x33, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Gesamt Stromverbrauch Warmwasser 13-24M (MWh 0x5036 + kWh 0x5037)
+                // Total power consumption hot water 13-24M (MWh 0x5036 + kWh 0x5037)
                 std::vector<uint8_t> r_mwh = {0x91, 0x00, 0xFA, 0x50, 0x36, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_mwh);
                 std::vector<uint8_t> r_kwh = {0x91, 0x00, 0xFA, 0x50, 0x37, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r_kwh);
             - delay: 200ms
             - lambda: |-
-                // Effizienz (0x501E Heizen 12M, 0x5022 WW 12M, 0x503A WW 13-24M)
+                // Efficiency (0x501E heating 12M, 0x5022 HW 12M, 0x503A HW 13-24M)
                 std::vector<uint8_t> r1 = {0x91, 0x00, 0xFA, 0x50, 0x1E, 0x00, 0x00};
                 id(my_canbus).send_data(0x680, false, r1);
                 std::vector<uint8_t> r2 = {0x91, 0x00, 0xFA, 0x50, 0x22, 0x00, 0x00};
@@ -1327,7 +1327,7 @@ interval:
                 id(my_canbus).send_data(0x680, false, r3);
 
 # =========================================================================
-# Betriebsmodus (gestaffelt) + Debug-Logging - immer im Core vorhanden.
+# Operating mode (staggered) + debug logging - always present in the core.
 # =========================================================================
 select:
   - platform: template

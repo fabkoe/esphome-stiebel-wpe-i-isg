@@ -1,29 +1,29 @@
 # =========================================================================
-# Schreib-Entities (Vollzugriff). NUR fuer den Voll-Build - via
-# wpe-i-manifest.yaml ZUSAETZLICH zu wpe-i-package.yaml eingebunden.
-# Wird dieses File nicht inkludiert, ist die Firmware physisch read-only.
+# Write entities (full access). ONLY for the full build - included
+# via wpe-i-manifest.yaml IN ADDITION to wpe-i-package.yaml.
+# If this file is not included, the firmware is physically read-only.
 #
-# Jede Schreib-Aktion ist zudem per g_mode >= 2 (Betriebsmodus
-# "Vollzugriff") abgesichert; in Modus 0/1 sind die Entities inert.
+# Every write action is additionally guarded by g_mode >= 2 (operating mode
+# "Full access"); in mode 0/1 the entities are inert.
 # =========================================================================
 
 
 # =========================================================================
-# EXPERIMENTELL: Schreib-Test fuer Betriebsart (Index 0x4F1B)
+# EXPERIMENTAL: write test for operating mode (index 0x4F1B)
 #
-# Format basiert auf einem dokumentierten Schreib-Beispiel fuer einen
-# anderen Elster-Index (PROGRAMMSCHALTER 0x0112) aus dem KNX-User-Forum:
+# Format is based on a documented write example for another
+# Elster index (PROGRAMMSCHALTER 0x0112) from the KNX user forum:
 #   680: 32 00 fa 01 12 02 00
-#   "Die '2' in 32 steht fuer Schreiben"
-# NICHT verifiziert, ob Byte0=0x32 auch fuer unseren Index/unser Geraet
-# passt. Dieser Button schreibt bewusst NUR den aktuell bekannten Wert
-# zurueck (keine echte Aenderung) - dient nur zum Testen, ob die WPM
-# das Schreib-Telegramm ueberhaupt akzeptiert (sichtbar an einem neuen
-# Broadcast auf idx=0x4F1B kurz danach im Log).
+# "The '2' in 32 stands for writing"
+# NOT verified whether byte0=0x32 also fits our index/our device;
+# this button deliberately writes back ONLY the currently known value
+# (no real change) - only to test whether the WPM accepts the
+# write telegram at all (visible as a new
+# broadcast on idx=0x4F1B shortly after in the log).
 #
-# ERST wenn dieser Test sauber funktioniert (Bestaetigung im Log, keine
-# Fehler, kein unerwartetes Verhalten der Anlage), sollte daraus ein
-# echter Schreib-Service mit variablem Zielwert gebaut werden.
+# ONLY once this test works cleanly (confirmation in the log, no
+# errors, no unexpected system behaviour) should a real
+# write service with a variable target value be built from it.
 # =========================================================================
 button:
   - platform: template
@@ -49,9 +49,9 @@ button:
           ESP_LOGI("wpe_i", "Betriebsart-Test-Schreiben gesendet: Wert=%d", v);
 
 # =========================================================================
-# Betriebsart-Steuerung (Index 0x4F1B) - schreibend bestaetigt am 19.07.2026:
-#   Ziel=Komfort(3) und Ziel=Eco(4) beide erfolgreich getestet, jeweils
-#   binnen ~820ms mit korrektem Wert auf 0x480 bestaetigt, keine Fehler.
+# Operating-mode control (index 0x4F1B) - writing confirmed on 19.07.2026:
+# target=comfort(3) and target=eco(4) both tested successfully, each
+# confirmed within ~820ms with the correct value on 0x480, no errors.
 # =========================================================================
 select:
   - platform: template
@@ -87,13 +87,13 @@ select:
           ESP_LOGI("wpe_i", "Betriebsart gesetzt auf: %s (%d)", x.c_str(), v);
 
   # =======================================================================
-  # Kuehlkreis 1 Ein/Aus (0x4F08) + KuehlART (0x4F05), Mischermodul 0x601.
-  # Schreib-Header C0 01 FA <idx> 00 <v>. 0x4F08 SCHREIBEN GERAETEBESTAETIGT
-  # (30.07.2026, logs/kuehlen-verify.log): TX C0 01 FA 4F 08 00 00/01 -> Geraet
-  # meldete ~0,8 s spaeter den neuen Wert, auch am Display verifiziert.
-  # KuehlART 0x4F05 gleiches Modul/Format, am 30.07.2026 schreibend AM DISPLAY
-  # VERIFIZIERT (Nutzer, Fläche<->Geblaese + zurueck) - ohne TX-Log-Mitschnitt.
-  # Enum-Werte 30.07.2026 lesend bestaetigt (1=Ein/Flaeche, 0=Aus/Geblaese).
+  # Cooling circuit 1 on/off (0x4F08) + cooling type (0x4F05), mixer module 0x601.
+  # Write header C0 01 FA <idx> 00 <v>. 0x4F08 WRITE DEVICE-CONFIRMED
+  # (30.07.2026, logs/kuehlen-verify.log): TX C0 01 FA 4F 08 00 00/01 -> device
+  # reported the new value ~0.8 s later, also verified on the display.
+  # Cooling type 0x4F05 same module/format, on 30.07.2026 writing VERIFIED ON
+  # THE DISPLAY (user, surface<->fan + back) - without a TX log capture.
+  # Enum values confirmed by reading 30.07.2026 (1=on/surface, 0=off/fan).
   # =======================================================================
   - platform: template
     name: "Kuehlkreis 1 setzen"
@@ -116,7 +116,7 @@ select:
           ESP_LOGI("wpe_i", "Kuehlkreis 1 gesetzt auf: %s (%d)", x.c_str(), v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          if (id(g_mode) < 2) return;  // write guard (read-back)
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x08, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
@@ -141,18 +141,18 @@ select:
           ESP_LOGI("wpe_i", "Kuehlart gesetzt auf: %s (%d)", x.c_str(), v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          if (id(g_mode) < 2) return;  // write guard (read-back)
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x05, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
   # =======================================================================
-  # Uebergeordneter Schalter KUEHLEN (Index 0x4F07). Manager-/System-Wert
-  # (0x4Fxx) wie die Betriebsart (0x4F1B), daher Schreib-Header 32 00
-  # (Modul 0x180). SCHREIBEN GERAETEBESTAETIGT (30.07.2026,
-  # logs/kuehlen-verify.log): TX 32 00 FA 4F 07 00 00 -> Geraet meldete
-  # 0,56 s spaeter 0x4F07 val=0, TX ..00 01 -> 0,86 s spaeter val=1; beide
-  # Richtungen auch am WPM-Display verifiziert. Read-back-Header 31 00
-  # (0x180) ebenfalls geraetebestaetigt (Poll wird beantwortet).
+  # Top-level COOLING switch (index 0x4F07). Manager/system value
+  # (0x4Fxx) like the operating mode (0x4F1B), hence write header 32 00
+  # (module 0x180). WRITE DEVICE-CONFIRMED (30.07.2026,
+  # logs/kuehlen-verify.log): TX 32 00 FA 4F 07 00 00 -> device reported
+  # 0x4F07 val=0 0.56 s later, TX ..00 01 -> val=1 0.86 s later; both
+  # directions also verified on the WPM display. Read-back header 31 00
+  # (0x180) also device-confirmed (poll is answered).
   # =======================================================================
   - platform: template
     name: "Kuehlen setzen"
@@ -175,24 +175,24 @@ select:
           ESP_LOGI("wpe_i", "Kuehlen gesetzt auf: %s (%d)", x.c_str(), v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          if (id(g_mode) < 2) return;  // write guard (read-back)
           std::vector<uint8_t> rb = {0x31, 0x00, 0xFA, 0x4F, 0x07, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
 # =========================================================================
-# Steigung Heizkurve (Index 0x4F2B, Mischermodul 0x601).
-# SCHREIBEN GERAETEBESTAETIGT (30.07.2026): unser Write von 0x680 mit
-#   C0 01 FA 4F 2B <hi> <lo>   (C0 01 = Setzen/Nibble 0 an 0x601)
-# aenderte den Wert 0,50 -> 0,40; am WPM4-Display verifiziert
-# (STEIGUNG HEIZKURVE 0.40), TX-Log C0 01 FA 4F 2B 00 28 vorhanden.
-# Schreib-Header per Display-Sniff hergeleitet (logs/heizkurve-write-*.log).
-# Wir senden das Payload ueber 0x680 (nie 0x100).
-# Geraete-Gueltigkeitsbereich laut Sniff (F8/F9-Frames): 0,20 - 3,00.
+# Heating-curve slope (index 0x4F2B, mixer module 0x601).
+# WRITE DEVICE-CONFIRMED (30.07.2026): our write from 0x680 with
+# C0 01 FA 4F 2B <hi> <lo>   (C0 01 = set/nibble 0 at 0x601)
+# changed the value 0.50 -> 0.40; verified on the WPM4 display
+# (STEIGUNG HEIZKURVE 0.40), TX log C0 01 FA 4F 2B 00 28 present.
+# Write header derived via display sniff (logs/heizkurve-write-*.log).
+# We send the payload over 0x680 (never 0x100).
+# Device valid range per sniff (F8/F9 frames): 0.20 - 3.00.
 #
-# Grenzen bewusst konservativ gewaehlt (0,1-2,5): laut Betriebsanleitung
-# koennen falsche Heizkurven-Werte zu Schaeden an Waermepumpe oder
-# Estrich fuehren. Typische Richtwerte: Fussbodenheizung ~0,4,
-# Radiatorenheizung ~0,8.
+# Limits deliberately conservative (0.1-2.5): per the manual
+# wrong heating-curve values can damage the heat pump or the
+# screed. Typical guide values: underfloor heating ~0.4,
+# radiator heating ~0.8.
 # =========================================================================
 number:
   - platform: template
@@ -219,21 +219,21 @@ number:
           ESP_LOGI("wpe_i", "Steigung Heizkurve gesetzt auf: %.2f (roh=%d)", x, v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
-          // Sofortiger Read-back (siehe Komforttemperatur): sonst dauert die
-          // Wertuebernahme bis zum naechsten 60s-Poll (am Geraet beobachtet).
+          if (id(g_mode) < 2) return;  // write guard (read-back)
+          // Immediate read-back (see comfort temperature): otherwise value
+          // adoption takes until the next 60s poll (observed on the device).
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x2B, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
   # =======================================================================
-  # Komforttemperatur / Eco-Temperatur Heizkreis (Index 0x4EB8 / 0x4EB9,
-  # Mischermodul 0x601). Schreib-Format aus dem bestaetigten Heizkurven-
-  # Write abgeleitet: C0 01 FA 4E B8/B9 <hi> <lo> (Wert = degC * 10),
-  # gesendet ueber 0x680. NOCH NICHT am Geraet verifiziert - erster echter
-  # Schreibtest bewusst mit kleinem Schritt, TX-Log (C0 01 ..) UND Display-
-  # Kontrolle. Der alte 21.07.-Fehlschlag lag am falschen Header (32 00).
-  # Grenzen konservativ: Raumsolltemperaturen, kein Estrich-Risiko wie bei
-  # der Heizkurve, aber Extremwerte vermeiden. Geraete-Min/Max unbekannt.
+  # Comfort / eco temperature heating circuit (index 0x4EB8 / 0x4EB9,
+  # mixer module 0x601). Write format derived from the confirmed heating-
+  # curve write: C0 01 FA 4E B8/B9 <hi> <lo> (value = degC * 10),
+  # sent over 0x680. NOT YET verified on the device - first real
+  # write test deliberately in a small step, TX log (C0 01 ..) AND display
+  # check. The old 21.07 failure was due to the wrong header (32 00).
+  # Limits conservative: room target temperatures, no screed risk as with
+  # the heating curve, but avoid extremes. Device min/max unknown.
   # =======================================================================
   - platform: template
     name: "Komforttemperatur Heizkreis setzen"
@@ -260,9 +260,9 @@ number:
           ESP_LOGI("wpe_i", "Komforttemperatur gesetzt auf: %.1f (roh=%d)", x, v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
-          // Sofortiger Read-back statt bis zum 60s-Poll zu warten: Wert
-          // direkt nach dem Write anfordern (Modul 0x601 antwortet prompt).
+          if (id(g_mode) < 2) return;  // write guard (read-back)
+          // Immediate read-back instead of waiting for the 60s poll: request
+          // the value right after the write (module 0x601 answers promptly).
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xB8, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
@@ -291,16 +291,16 @@ number:
           ESP_LOGI("wpe_i", "Eco-Temperatur gesetzt auf: %.1f (roh=%d)", x, v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
-          // Sofortiger Read-back (siehe Komforttemperatur).
+          if (id(g_mode) < 2) return;  // write guard (read-back)
+          // Immediate read-back (see comfort temperature).
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xB9, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
-  # Minimal-Temperatur HK (0x4EA7). Geraet kennt am Display nur "Aus" oder
-  # 10-30 degC (nichts dazwischen; F8/F9-Sniff: Min 10,0 / Max 30,0). Schieber
-  # bildet das ab: 0 = "Aus" (Sonderwert 0x9000), ab 10 = echte Temperatur.
-  # Alles unter 10 faengt die Set-Logik als "Aus" ab, damit nie eine
-  # ungueltige 0,1-9,9 degC gesendet wird.
+  # Minimum temperature HC (0x4EA7). On the display the device only knows "Off" or
+  # 10-30 degC (nothing in between; F8/F9 sniff: min 10.0 / max 30.0). The slider
+  # reflects this: 0 = "Off" (special value 0x9000), from 10 = real temperature.
+  # Anything below 10 is caught by the set logic as "Off", so an
+  # invalid 0.1-9.9 degC is never sent.
   - platform: template
     name: "Minimal Temperatur Heizkreis setzen"
     entity_category: config
@@ -316,7 +316,7 @@ number:
           if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
           uint16_t raw;
           const char* mode;
-          if (x < 10.0f) {            // Schieber < 10 = "Aus" (0x9000)
+          if (x < 10.0f) {            // Slider < 10 = "Off" (0x9000)
             raw = 0x9000;
             mode = "Aus";
           } else {
@@ -334,14 +334,14 @@ number:
           ESP_LOGI("wpe_i", "Minimal Temperatur gesetzt (%s) auf: %.1f", mode, x);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
-          // Sofortiger Read-back (siehe Komforttemperatur).
+          if (id(g_mode) < 2) return;  // write guard (read-back)
+          // Immediate read-back (see comfort temperature).
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xA7, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
-  # Raumeinfluss HK (0x4EA4): direkt in Prozent, Geraetebereich 0-100 %.
-  # Das Geraet rastet am Display auf 5er-Schritte (18% gesendet -> 20%
-  # gespeichert, im Log geraeteverifiziert) -> step 5.
+  # Room influence HC (0x4EA4): directly in percent, device range 0-100 %.
+  # The device snaps to steps of 5 on the display (18% sent -> 20%
+  # stored, device-verified in the log) -> step 5.
   - platform: template
     name: "Raumeinfluss Heizkreis setzen"
     entity_category: config
@@ -366,27 +366,27 @@ number:
           ESP_LOGI("wpe_i", "Raumeinfluss gesetzt auf: %.0f%% (roh=%d)", x, v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
-          // Sofortiger Read-back (siehe Komforttemperatur).
+          if (id(g_mode) < 2) return;  // write guard (read-back)
+          // Immediate read-back (see comfort temperature).
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4E, 0xA4, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
   # =======================================================================
-  # Kuehlen-Zahlenwerte (Mischermodul 0x601): Raumsolltemperatur (0x4F04),
-  # Steigung Kuehlkurve (0x4FB9), Starttemperatur (0x4FBE).
-  # Schreib-Format aus dem bestaetigten Heizkurven-Write abgeleitet
-  # (C0 01 FA <idx> <hi> <lo>, ueber 0x680).
-  # Raumsolltemperatur 0x4F04 SCHREIBEN GERAETEBESTAETIGT (30.07.2026,
-  # logs\raumsoll-write.log): TX C0 01 FA 4F 04 00 C9 (20,1) -> Geraet meldete
-  # ~0,8 s spaeter val=201 (Broadcast 80 01 + Antwort D2 00), am Display 20,1,
-  # danach sauber auf 20,0 zurueck.
-  # 0x4FB9/0x4FBE am 30.07.2026 schreibend AM DISPLAY VERIFIZIERT (Nutzer, je
-  # gesetzt + zurueckgestellt) - ohne TX-Log-Mitschnitt; Schreibpfad = diese
-  # Entities (C0 01, wie log-belegtes 0x4F04). Steigung Kuehlkurve wg. Taupunkt-/
-  # Estrich-Risiko weiter nur mit kleinem Schritt aendern.
-  # Grenzen = am Display abgelesene Geraetebereiche (30.07.2026).
-  # Achtung Kuehlkurve: zu steile Kurve -> tiefe Vorlauftemp -> Taupunkt-/
-  # Kondensationsrisiko am Estrich; im Zweifel flach lassen.
+  # Cooling numeric values (mixer module 0x601): room target temperature (0x4F04),
+  # cooling-curve slope (0x4FB9), start temperature (0x4FBE).
+  # Write format derived from the confirmed heating-curve write
+  # (C0 01 FA <idx> <hi> <lo>, over 0x680).
+  # Room target temperature 0x4F04 WRITE DEVICE-CONFIRMED (30.07.2026,
+  # logs\raumsoll-write.log): TX C0 01 FA 4F 04 00 C9 (20.1) -> device reported
+  # val=201 ~0.8 s later (broadcast 80 01 + answer D2 00), 20.1 on the display,
+  # then cleanly back to 20.0.
+  # 0x4FB9/0x4FBE writing VERIFIED ON THE DISPLAY on 30.07.2026 (user, each
+  # set + reset) - without a TX log capture; write path = these
+  # entities (C0 01, like log-proven 0x4F04). Cooling-curve slope, due to dew-point/
+  # screed risk, still only change in small steps.
+  # Limits = device ranges read off the display (30.07.2026).
+  # Caution cooling curve: too steep -> low flow temp -> dew-point/
+  # condensation risk at the screed; when in doubt keep it flat.
   # =======================================================================
   - platform: template
     name: "Raumsolltemperatur Kuehlen setzen"
@@ -413,7 +413,7 @@ number:
           ESP_LOGI("wpe_i", "Raumsolltemperatur Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          if (id(g_mode) < 2) return;  // write guard (read-back)
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0x04, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
@@ -441,7 +441,7 @@ number:
           ESP_LOGI("wpe_i", "Steigung Kuehlkurve gesetzt auf: %.2f (roh=%d)", x, v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          if (id(g_mode) < 2) return;  // write guard (read-back)
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0xB9, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
@@ -470,16 +470,16 @@ number:
           ESP_LOGI("wpe_i", "Starttemperatur Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          if (id(g_mode) < 2) return;  // write guard (read-back)
           std::vector<uint8_t> rb = {0xC1, 0x01, 0xFA, 0x4F, 0xBE, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
   # =======================================================================
-  # Hysterese Vorlauftemp Kuehlen (Index 0x4F00, Manager-Modul 0x180).
-  # SCHREIBEN GERAETEBESTAETIGT (30.07.2026): Schreib-Header 32 00 (wie
-  # KUEHLEN 0x4F07, gleiches Modul 0x180); Test 4,0 -> 4,5 mit TX-Log
-  # (32 00 FA 4F 00 ..), Geraete-Rueckmeldung und Display-Kontrolle bestaetigt.
-  # Grenzen = Geraetebereich (F8/F9: 4,0-10,0 K).
+  # Cooling flow-temp hysteresis (index 0x4F00, manager module 0x180).
+  # WRITE DEVICE-CONFIRMED (30.07.2026): write header 32 00 (like
+  # COOLING 0x4F07, same module 0x180); test 4.0 -> 4.5 with TX log
+  # (32 00 FA 4F 00 ..), device report and display check confirmed.
+  # Limits = device range (F8/F9: 4.0-10.0 K).
   # =======================================================================
   - platform: template
     name: "Hysterese Vorlauf Kuehlen setzen"
@@ -505,7 +505,7 @@ number:
           ESP_LOGI("wpe_i", "Hysterese Vorlauf Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
       - delay: 250ms
       - lambda: |-
-          if (id(g_mode) < 2) return;  // Schreib-Guard (Read-back)
+          if (id(g_mode) < 2) return;  // write guard (read-back)
           std::vector<uint8_t> rb = {0x31, 0x00, 0xFA, 0x4F, 0x00, 0x00, 0x00};
           id(my_canbus).send_data(0x680, false, rb);
 
