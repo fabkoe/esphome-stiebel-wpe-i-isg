@@ -17,24 +17,53 @@ bestehenden Projekten wie
 [OneESP32ToRuleThemAll](https://github.com/kr0ner/OneESP32ToRuleThemAll)
 (WPL/THZ-Baureihen) bisher nicht abgedeckt wird.
 
-## Features
+## Was es kann
 
-**Lesend (bestätigt):**
-Außentemperatur · Warmwasser Ist/Soll · Rücklauf-/Vorlauftemperatur ·
-Raumtemperatur & -luftfeuchte (FET-Fernfühler) · Betriebsart ·
-Steigung Heizkurve · Komfort-/Eco-Temperatur Heizkreis ·
-Meldungslisten-Zähler
+**Lesen** (~60 Sensor-Entities, gruppiert nach Alltag / Konfiguration / Diagnose):
 
-**Schreibend (bestätigt):**
-- Betriebsart als Home-Assistant-Dropdown (Bereitschaft / Programm /
-  Komfort / Eco / Warmwasser)
+- **Temperaturen:** Außen, Warmwasser Ist/Soll, Vorlauf/Rücklauf,
+  Raumtemperatur & -luftfeuchte (FET-Fernfühler)
+- **Einstellungen:** Betriebsart, Heizkurve (Steigung, Komfort-/Eco-Temperatur,
+  Raumeinfluss, Minimaltemperatur), Kühlen (Raumsoll, Kühlkurve, Starttemperatur,
+  Hysterese, Leistung, Kühlart)
+- **Live-Prozessdaten (Kältekreis):** Verdampfer-, Verdichtereintritts-,
+  Heißgas-, Verflüssiger-, Ölsumpftemperatur, Nieder-/Hochdruck, Volumenstrom,
+  Inverter-Strom/-Spannung, Verdichter Ist-/Solldrehzahl
+- **Wärmequelle (Sole):** Vor-/Rücklauf, Druck, Pumpenleistung
+- **Energie & Effizienz:** Wärmemengen und Stromverbrauch (Verdichter +
+  Nacherwärmung, Heizen/Warmwasser), Jahresbilanz 1–12 & 13–24 Monate, COP
+- **Laufzeiten & Starts:** Verdichter (Heizen/WW), Nacherwärmung, Passivkühlung,
+  Verdichter-Starts · plus Meldungslisten-Zähler
 
-**Schreibend (experimentell, ungetestet/zurückgestellt):**
-- Steigung Heizkurve (`number`-Entity vorhanden, Schreibtest ausstehend)
-- Komfort-/Eco-Temperatur (Entities entfernt, Format in Klärung –
-  siehe Doku)
+**Schreiben / Steuern** (nur im Voll-Build & Betriebsmodus „Vollzugriff"):
 
-### Betriebsmodus & Sicherheit
+- **Betriebsart** als HA-Dropdown (Bereitschaft / Programm / Komfort / Eco /
+  Warmwasser)
+- **Heizkreis:** Steigung Heizkurve, Komfort-/Eco-Temperatur, Raumeinfluss,
+  Minimaltemperatur
+- **Kühlen:** Raumsolltemperatur, Steigung Kühlkurve, Starttemperatur,
+  Hysterese, Kühlkreis / Kühlart / „Kühlen"-Schalter
+
+Die Schreibwerte wurden an einem Gerät per Log + Display bestätigt; einzelne
+sind noch experimentell – Formate, Grenzen und Status stehen in
+[`docs/reverse-engineering.md`](docs/reverse-engineering.md).
+
+## Wie es funktioniert
+
+Der ESP32 hängt als stiller Abgriff am internen CAN-Bus des WPM4-Reglers und
+spricht das Elster/Kromschröder-Protokoll (50 kbps, 7-Byte-Frames):
+
+1. **Mithören:** Ein Decoder zerlegt jeden Frame (Index + Wert) und füttert die
+   passende Home-Assistant-Entity.
+2. **Aktiv abfragen:** Werte, die die WPM nicht von selbst sendet, pollt der ESP
+   alle 60 s über den freien PC/ComfortSoft-Kanal (CAN-ID `0x680`) – kollisionsfrei.
+3. **Schreiben:** Steuer-Entities senden einen Write-Frame + sofortigen
+   Read-back, damit der neue Wert direkt in HA erscheint – nur im Modus „Vollzugriff".
+
+Alle Indizes und Skalierungen sind selbst reverse-engineered und in
+[`docs/reverse-engineering.md`](docs/reverse-engineering.md) dokumentiert.
+
+## Betriebsmodus & Read-only
 
 Gestaffelter, umschaltbarer Zugriff (HA-Auswahl **„Betriebsmodus"**,
 Default **1**):
@@ -157,39 +186,31 @@ LICENSE · NOTICE            # Apache-2.0 + Marken-/Herkunftshinweis
 CONTRIBUTING.md             # Mitwirken + DCO-Sign-off
 ```
 
-## Disclaimer
+## Wichtig (bitte kurz lesen)
 
-**Privates Reverse-Engineering-Projekt, keinerlei Verbindung zu Stiebel Eltron.**
-„Stiebel Eltron", „WPE-I", „WPM" und weitere Namen sind Marken ihrer jeweiligen
-Inhaber und werden hier nur zur Beschreibung der Kompatibilität genannt.
+Privates Bastel-/Reverse-Engineering-Projekt, **nichts mit Stiebel Eltron zu tun** –
+Nutzung auf eigene Gefahr, ohne Gewähr.
 
-Nutzung **auf eigene Gefahr, ohne jede Gewährleistung** (siehe Lizenz). Im
-Einzelnen:
+- **Lesen ist harmlos, Schreiben nicht.** Falsche Schreibwerte können laut
+  Handbuch die Wärmepumpe oder den Estrich beschädigen – darum ist Read-only der
+  Default, Schreiben schaltest du bewusst zu.
+- **Strom aus:** am WPM/CAN-Bus nur an der spannungsfrei geschalteten Anlage
+  arbeiten (Restspannung bis ~5 min).
+- **Ein Gerät:** alles an genau einer WPE-I 06 HKW 230 (WPM4 449-10) getestet –
+  bei anderer Baureihe/Firmware kann's abweichen.
 
-- ⚠️ **Sachschaden:** Falsche Schreibwerte können laut Betriebsanleitung zu
-  Schäden an Wärmepumpe oder Estrich führen. Schreibzugriffe nur bewusst und mit
-  verstandenem Format nutzen. Lesen ist unkritisch, Schreiben nicht.
-- ⚡ **Elektrische Gefahr:** Arbeiten am WPM/CAN-Bus nur durch fachkundige
-  Personen und an der **allpolig spannungsfrei geschalteten** Anlage
-  (Restspannung bis ~5 min).
-- 🔬 **Ein-Geräte-Basis:** Alle Indizes wurden an **genau einem** Gerät
-  (WPE-I 06 HKW 230 Premium, WPM4 SW 449-10) verifiziert. Andere Baureihen oder
-  Softwarestände können abweichen – vor dem Schreiben am eigenen Gerät prüfen.
-- 🔌 **Kein Support/keine Haftung** für Folgen aus Nachbau, Fehlkonfiguration
-  oder abweichender Hardware. Ein Eingriff kann Garantie-/Gewährleistungs-
-  ansprüche gegenüber dem Hersteller berühren.
+## Lizenz & Mitmachen
 
-## Lizenz
-
-Veröffentlicht unter der **Apache-2.0-Lizenz** – siehe [`LICENSE`](LICENSE)
-(inkl. Patent-Grant) und [`NOTICE`](NOTICE) für den Marken-/Herkunftshinweis.
-Beiträge laufen über den **DCO-Sign-off** – siehe
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
-*(Copyright-Zeile in `NOTICE` noch mit deinem Namen füllen.)*
+Apache-2.0 (siehe [`LICENSE`](LICENSE)). Beiträge sind willkommen – Commits kurz
+per DCO signieren (`git commit -s`), Details in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Danksagung / Referenzen
 
 - Elster-Protokolltabelle: [juerg5524.ch](http://juerg5524.ch/data/ElsterTable.inc)
   (Mirror: [andig/canprogs](https://github.com/andig/canprogs))
+- [andig/goelster](https://github.com/andig/goelster) – Elster-CAN in Go, gute
+  Referenz für Index-Skalierungen
 - [kr0ner/OneESP32ToRuleThemAll](https://github.com/kr0ner/OneESP32ToRuleThemAll)
-  als Referenzprojekt für die WPL/THZ-Baureihen
+  – Referenzprojekt für die WPL/THZ-Baureihen
+- [bullitt186/ha-stiebel-control](https://github.com/bullitt186/ha-stiebel-control)
+  – beschrifteter Frame-Logger, half beim Aufspüren offener Werte
