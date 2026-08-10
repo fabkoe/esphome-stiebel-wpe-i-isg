@@ -1,3 +1,5 @@
+**🇩🇪 Deutsch (vollständig)** · [🇬🇧 English (overview)](reverse-engineering.en.md)
+
 # Stiebel Eltron WPE-I 06 HKW 230 Premium – CAN-Bus Reverse Engineering
 
 Stand: 29.07.2026
