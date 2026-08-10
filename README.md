@@ -1,3 +1,5 @@
+**🇩🇪 Deutsch** · [🇬🇧 English](README.en.md)
+
 # esphome-stiebel-wpe-i-isg – Stiebel Eltron WPE-I ohne ISG in Home Assistant
 
 ESPHome-Firmware, die eine **Stiebel Eltron WPE-I 06 HKW 230 Premium**
