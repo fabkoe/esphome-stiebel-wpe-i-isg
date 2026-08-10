@@ -1,15 +1,15 @@
 # =========================================================================
-# Lokaler Flash-/Entwicklungsstand (PC/esptool).
-# Bindet den wiederverwendbaren Kern (wpe-i-package.yaml) ein und ergaenzt
-# nur die geraetespezifischen Netz-Zugangsdaten aus secrets.yaml.
-# Flashen wie gehabt:  py -3.12 -m esphome run wpe-i-manifest.yaml
+# Local flash/development build (PC/esptool).
+# Includes the reusable core (wpe-i-package.yaml) and adds
+# only the device-specific network credentials from secrets.yaml.
+# Flash as usual:  py -3.12 -m esphome run wpe-i-manifest.yaml
 #
-# Wer die Firmware als ESPHome-Package/Adopt nutzt, braucht diese Datei
-# NICHT - dann liefert das Dashboard eine Mini-Config, die das Package
-# per github:// referenziert (siehe README, Abschnitt Installation).
+# Anyone using the firmware as an ESPHome package/adopt does NOT need
+# this file - the dashboard then provides a mini config that references
+# the package via github:// (see README, Installation section).
 #
-# VOLL-BUILD: bindet zusaetzlich wpe-i-writes.yaml ein (Schreib-Entities).
-# Fuer einen echten Read-only-Build die zweite Zeile auskommentieren/weglassen.
+# FULL BUILD: additionally includes wpe-i-writes.yaml (write entities).
+# For a true read-only build, comment out/omit the second line.
 # =========================================================================
 
 packages:
