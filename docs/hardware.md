@@ -1,3 +1,5 @@
+**🇩🇪 Deutsch** · [🇬🇧 English](hardware.en.md)
+
 # Hardware: Waveshare ESP32-S3-RS485-CAN
 
 Das im Projekt verwendete Board. Diese Datei bündelt die Geräte-Doku; das

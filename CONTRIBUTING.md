@@ -1,3 +1,5 @@
+**🇩🇪 Deutsch** · [🇬🇧 English](CONTRIBUTING.en.md)
+
 # Mitwirken
 
 Beiträge sind willkommen – Issues, Werte-Bestätigungen an anderen WPE-I-/
