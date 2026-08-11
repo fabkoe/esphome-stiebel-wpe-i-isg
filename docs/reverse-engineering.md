@@ -752,12 +752,12 @@ Nicht berechenbar (bleibt RE/Read): BETRIEBSSTATUS-Bitfeld 2501, Netz-U/I
 L1/L2/L3, Kühlen-Live Ist/Soll, WW-/Heizen-Config, Nacherwärmung/Bivalenz,
 Drehzahlen. (Jahres-Effizienz lesen wir bereits fertig vom Gerät – nicht rechnen.)
 
-**H – Veröffentlichung / Deployment (Stufe 3) ✅ vorbereitet (09.08.2026)**
+**H – Veröffentlichung / Deployment (Stufe 3) ✅ veröffentlicht v1.0.0 (11.08.2026)**
 
-Umgesetzt (lokal, noch nicht veröffentlicht):
+Umgesetzt und öffentlich (Tag `v1.0.0`, Repo public):
 - [x] **ESPHome-Package-Split** für Adopt-Flow: `wpe-i-package.yaml` (Kern) +
   schlanke `wpe-i-manifest.yaml`; `esphome: project:` + `dashboard_import:`
-  (URL/Projektname = `CHANGEME`, sobald Repo entschieden).
+  (URL `…/wpe-i-package.yaml@v1.0.0`, `project.name = fabkoe.esphome-stiebel-wpe-i-isg`).
 - [x] **Board/Pins als substitutions** (Waveshare-Defaults, überschreibbar).
 - [x] **Read-only-Split (Variante b):** Schreib-Entities in `wpe-i-writes.yaml`
   ausgelagert → ohne Include physisch read-only.
@@ -766,18 +766,23 @@ Umgesetzt (lokal, noch nicht veröffentlicht):
   `g_mode>=2`. **Debug-Logging** `switch` (`g_debug`) für den Roh-Dump.
 - [x] **Lizenz Apache-2.0 + NOTICE + DCO** (`CONTRIBUTING.md`); README/CLAUDE
   angepasst; `ota_password` in secrets.example ergänzt.
-- [x] **Neues (privates) Repo** `fabkoe/esphome-stiebel-wpe-i-isg` angelegt,
-  alle Platzhalter gefüllt (Owner/URLs `@main`, `project.name`, Copyright
-  „Fabian Köster"). Beschreibung + Feature-Vergleich mit ISG-Bezug im README.
+- [x] **Öffentliches Repo** `fabkoe/esphome-stiebel-wpe-i-isg` (public seit
+  11.08.2026), URLs auf `@v1.0.0` gepinnt, `project.name`/Copyright
+  „Fabian Köster" gesetzt. Beschreibung + Feature-Vergleich mit ISG-Bezug im README.
 - [x] **Hersteller-PDFs entfernt** (Working Tree **und** History via
   filter-repo) und extern verlinkt – Repo damit copyright-sauber für Public.
+- [x] **i18n:** Doku (DE + EN mit Umschalter), YAML-Kommentare, Entity-Namen,
+  Dropdown-Optionen und Log-Meldungen auf Englisch (Code/Indizes unverändert).
+- [x] **`esphome config` + Flash am Gerät verifiziert** (ESPHome 2026.7.4):
+  Config valid, voller Build ok, per USB geflasht; API-Log zeigt englische
+  Entity-Namen und reale Messwerte (Außen-/WW-/Vorlauftemp), CAN-Frames laufen.
+  Windows-Pfadlängen-Falle umgangen via `ESPHOME_ESP_IDF_PREFIX=C:\ESPHome\idf`.
 
 Offen (Nutzerentscheidung / Release-Schritte):
-- [ ] **`esphome config` + Flash-Test** am Gerät (esphome-CLI hier nicht
-  verfügbar; bisher nur YAML-Struktur-Check).
 - [ ] **Schreib-Guard am Gerät gegenchecken** (Modus 1 → Klick auf „… setzen"
   darf NICHT schreiben; Modus 2 → schreibt). Gefahrlos, da Guard nur unterbindet.
-- [ ] Repo public schalten + `git tag v1.0.0` + Release.
+  Hinweis: Gerät kam nach dem Flash in `Access Mode = 2` hoch (`restore_value`).
+- [ ] Optional: **GitHub-Release** zu `v1.0.0` mit Release Notes.
 - [ ] Optional später: Web-Installer (ESP Web Tools) bewusst zurückgestellt
   (Sicherheits-/Ein-Geräte-Bedenken).
 
