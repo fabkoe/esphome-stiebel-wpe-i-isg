@@ -34,11 +34,9 @@ ota:
   password: !secret ota_password
 
 # Adopt flow: the device announces itself in the ESPHome/HA dashboard for adoption.
-# package_import_url MUST point to the PUBLIC repo (repo is currently still
-# PRIVATE -> adopt/github:// only works once made public). On release
-# switch @main to the version tag (@v1.0.0).
+# package_import_url points to the public repo at the released version tag.
 dashboard_import:
-  package_import_url: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@main
+  package_import_url: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@v1.0.0
   import_full_config: false
 
 # =========================================================================

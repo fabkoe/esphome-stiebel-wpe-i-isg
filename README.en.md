@@ -130,7 +130,7 @@ the package directly – your own mini config:
 substitutions:
   name: wpe-i-heatpump
 packages:
-  wpe_i: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@main
+  wpe_i: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@v1.0.0
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
@@ -145,8 +145,8 @@ additionally include `wpe-i-writes.yaml`:
 
 ```yaml
 packages:
-  wpe_i:        github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@main
-  wpe_i_writes: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-writes.yaml@main
+  wpe_i:        github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@v1.0.0
+  wpe_i_writes: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-writes.yaml@v1.0.0
 ```
 
 ### B) Build/develop locally (esptool)

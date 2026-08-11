@@ -133,7 +133,7 @@ Package direkt referenzieren – eigene Mini-Config:
 substitutions:
   name: wpe-i-heatpump
 packages:
-  wpe_i: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@main
+  wpe_i: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@v1.0.0
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
@@ -149,8 +149,8 @@ will, bindet zusätzlich `wpe-i-writes.yaml` ein:
 
 ```yaml
 packages:
-  wpe_i:        github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@main
-  wpe_i_writes: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-writes.yaml@main
+  wpe_i:        github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-package.yaml@v1.0.0
+  wpe_i_writes: github://fabkoe/esphome-stiebel-wpe-i-isg/esphome/wpe-i-writes.yaml@v1.0.0
 ```
 
 ### B) Lokal bauen / entwickeln (esptool)
