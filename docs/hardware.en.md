@@ -54,4 +54,4 @@ a tap on the bus, not a bus end. Bit rate **50 kbps**.
 ## Flashing / bootloader (wiki FAQ)
 
 If the COM port is missing or flashing fails: **hold BOOT, tap RESET at the same
-time, release BOOT** (bootloader mode). Matches the workflow in CLAUDE.md.
+time, release BOOT** (bootloader mode). Matches the usual ESP32 flashing workflow.

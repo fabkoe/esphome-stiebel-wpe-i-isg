@@ -764,7 +764,7 @@ Umgesetzt und öffentlich (Tag `v1.0.0`, Repo public):
 - [x] **Gestaffelter Betriebsmodus** `select` (0 lauschen / 1 poll / 2 voll,
   Default 1) via global `g_mode`; Poller-Gate `g_mode>=1`, Schreib-Guards
   `g_mode>=2`. **Debug-Logging** `switch` (`g_debug`) für den Roh-Dump.
-- [x] **Lizenz Apache-2.0 + NOTICE + DCO** (`CONTRIBUTING.md`); README/CLAUDE
+- [x] **Lizenz Apache-2.0 + NOTICE + DCO** (`CONTRIBUTING.md`); README/CONTRIBUTING
   angepasst; `ota_password` in secrets.example ergänzt.
 - [x] **Öffentliches Repo** `fabkoe/esphome-stiebel-wpe-i-isg` (public seit
   11.08.2026), URLs auf `@v1.0.0` gepinnt, `project.name`/Copyright

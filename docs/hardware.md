@@ -55,4 +55,4 @@ hängt als Abgriff am Bus, nicht als Busende. Bitrate **50 kbps**.
 
 Wenn der COM-Port fehlt oder das Flashen fehlschlägt: **BOOT gedrückt halten,
 gleichzeitig RESET tippen, BOOT loslassen** (Bootloader-Modus). Deckt sich mit
-dem Workflow in CLAUDE.md.
+dem üblichen ESP32-Flash-Workflow.

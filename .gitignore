@@ -11,6 +11,9 @@ esphome/.esphome/
 canlog_*.txt
 canlog_*.csv
 
+# Local agent context file (not part of the public project)
+CLAUDE.md
+
 # OS/Editor
 .DS_Store
 Thumbs.db
