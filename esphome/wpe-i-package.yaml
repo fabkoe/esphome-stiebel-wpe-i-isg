@@ -1,6 +1,6 @@
 substitutions:
   name: wpe-i-heatpump
-  friendly_name: "WPE-I Waermepumpe"
+  friendly_name: "WPE-I Heat Pump"
   # Board + CAN pins as defaults for the Waveshare ESP32-S3-RS485-CAN
   # (see docs/hardware.md). For other boards override here.
   board: esp32-s3-devkitc-1
@@ -176,7 +176,7 @@ sensor:
     lambda: 'return id(frame_count);'
 
   - platform: template
-    name: "Aussentemperatur"
+    name: "Outdoor Temperature"
     id: aussentemperatur
     unit_of_measurement: "°C"
     device_class: temperature
@@ -184,7 +184,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Warmwasser Isttemperatur"
+    name: "DHW Actual Temperature"
     id: ww_isttemperatur
     unit_of_measurement: "°C"
     device_class: temperature
@@ -192,7 +192,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Warmwasser Solltemperatur"
+    name: "DHW Setpoint Temperature"
     id: ww_solltemperatur
     unit_of_measurement: "°C"
     device_class: temperature
@@ -200,7 +200,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Ruecklauftemperatur"
+    name: "Return Temperature"
     id: ruecklauftemperatur
     unit_of_measurement: "°C"
     device_class: temperature
@@ -208,19 +208,19 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Meldungsliste Anlage"
+    name: "Fault List System"
     id: meldungsliste_anlage
     accuracy_decimals: 0
     entity_category: diagnostic
 
   - platform: template
-    name: "Meldungsliste Waermepumpe"
+    name: "Fault List Heat Pump"
     id: meldungsliste_wp
     accuracy_decimals: 0
     entity_category: diagnostic
 
   - platform: template
-    name: "Vorlauftemperatur Waermepumpe"
+    name: "Flow Temperature Heat Pump"
     id: vorlauftemperatur_wp
     unit_of_measurement: "°C"
     device_class: temperature
@@ -228,7 +228,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Raumtemperatur"
+    name: "Room Temperature"
     id: raumtemperatur
     unit_of_measurement: "°C"
     device_class: temperature
@@ -236,7 +236,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Raumluftfeuchte"
+    name: "Room Humidity"
     id: raumluftfeuchte
     unit_of_measurement: "%"
     device_class: humidity
@@ -244,20 +244,20 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Betriebsart Code"
+    name: "Operating Mode Code"
     id: betriebsart_code
     accuracy_decimals: 0
     entity_category: diagnostic
 
   - platform: template
-    name: "Steigung Heizkurve"
+    name: "Heating Curve Slope"
     entity_category: diagnostic
     id: steigung_heizkurve
     accuracy_decimals: 2
     state_class: measurement
 
   - platform: template
-    name: "Komforttemperatur Heizkreis"
+    name: "Comfort Temperature Heating Circuit"
     entity_category: diagnostic
     id: komforttemperatur_hk
     unit_of_measurement: "°C"
@@ -266,7 +266,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Eco-Temperatur Heizkreis"
+    name: "Eco Temperature Heating Circuit"
     entity_category: diagnostic
     id: ecotemperatur_hk
     unit_of_measurement: "°C"
@@ -278,7 +278,7 @@ sensor:
   # ("Off" or "18.0 °C"), see text_sensor block. Set via the
   # slider "Minimal Temperatur Heizkreis setzen" (0 = Off).
   - platform: template
-    name: "Raumeinfluss Heizkreis"
+    name: "Room Influence Heating Circuit"
     entity_category: diagnostic
     id: raumeinfluss_hk
     unit_of_measurement: "%"
@@ -289,7 +289,7 @@ sensor:
   # Cooling circuit 1 is on module 0x601 (like the heating curve); hysteresis/power
   # on their own modules (0x180/0x480). Read-only sensors, no writing.
   - platform: template
-    name: "Raumsolltemperatur Kuehlen"
+    name: "Room Setpoint Temperature Cooling"
     entity_category: diagnostic
     id: raumsolltemp_kuehlen
     unit_of_measurement: "°C"
@@ -298,14 +298,14 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Steigung Kuehlkurve"
+    name: "Cooling Curve Slope"
     entity_category: diagnostic
     id: steigung_kuehlkurve
     accuracy_decimals: 2
     state_class: measurement
 
   - platform: template
-    name: "Starttemperatur Kuehlen"
+    name: "Start Temperature Cooling"
     entity_category: diagnostic
     id: starttemp_kuehlen
     unit_of_measurement: "°C"
@@ -314,7 +314,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Hysterese Vorlauf Kuehlen"
+    name: "Flow Hysteresis Cooling"
     entity_category: diagnostic
     id: hysterese_vorlauf_kuehlen
     unit_of_measurement: "K"
@@ -322,7 +322,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Leistung Kuehlen"
+    name: "Cooling Power"
     entity_category: diagnostic
     id: leistung_kuehlen
     unit_of_measurement: "kW"
@@ -336,7 +336,7 @@ sensor:
   # Confirmed 29.07.2026 (sniffer + display cross-check), answer on 0x500.
   # 2WE = second heat generator = electric booster heater (NHZ).
   - platform: template
-    name: "Waermemenge Heizen VD"
+    name: "Heat Quantity Heating Compressor"
     entity_category: diagnostic
     id: wm_heiz_vd
     unit_of_measurement: "kWh"
@@ -345,7 +345,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: "Waermemenge Warmwasser VD"
+    name: "Heat Quantity DHW Compressor"
     entity_category: diagnostic
     id: wm_ww_vd
     unit_of_measurement: "kWh"
@@ -354,7 +354,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: "Waermemenge Heizen NHZ"
+    name: "Heat Quantity Heating Booster"
     entity_category: diagnostic
     id: wm_heiz_nhz
     unit_of_measurement: "kWh"
@@ -363,7 +363,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: "Waermemenge Warmwasser NHZ"
+    name: "Heat Quantity DHW Booster"
     entity_category: diagnostic
     id: wm_ww_nhz
     unit_of_measurement: "kWh"
@@ -372,7 +372,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: "Stromaufnahme Heizen VD"
+    name: "Power Consumption Heating Compressor"
     entity_category: diagnostic
     id: el_heiz_vd
     unit_of_measurement: "kWh"
@@ -381,7 +381,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: "Stromaufnahme Warmwasser VD"
+    name: "Power Consumption DHW Compressor"
     entity_category: diagnostic
     id: el_ww_vd
     unit_of_measurement: "kWh"
@@ -394,7 +394,7 @@ sensor:
   # decrease, hence NOT total_increasing). Display-verified 29.07.2026
   # (Info->Energy balance->Whole system). COP is computed on the HA side.
   - platform: template
-    name: "Gesamt Waermemenge Heizen 12M"
+    name: "Total Heat Quantity Heating 12M"
     entity_category: diagnostic
     id: gs_wm_heiz
     unit_of_measurement: "kWh"
@@ -403,7 +403,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: "Gesamt Waermemenge Warmwasser 12M"
+    name: "Total Heat Quantity DHW 12M"
     entity_category: diagnostic
     id: gs_wm_ww
     unit_of_measurement: "kWh"
@@ -412,7 +412,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: "Gesamt Stromverbrauch Heizen 12M"
+    name: "Total Power Consumption Heating 12M"
     entity_category: diagnostic
     id: gs_strom_heiz
     unit_of_measurement: "kWh"
@@ -421,7 +421,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: "Gesamt Stromverbrauch Warmwasser 12M"
+    name: "Total Power Consumption DHW 12M"
     entity_category: diagnostic
     id: gs_strom_ww
     unit_of_measurement: "kWh"
@@ -432,7 +432,7 @@ sensor:
   # --- Runtimes (IWS 0x514), indices display-confirmed 29.07.2026 ---
   # Operating hours -> only increasing (total_increasing), device_class duration.
   - platform: template
-    name: "Laufzeit VD Heizen"
+    name: "Runtime Compressor Heating"
     entity_category: diagnostic
     id: laufzeit_vd_heizen
     unit_of_measurement: "h"
@@ -440,7 +440,7 @@ sensor:
     state_class: total_increasing
     accuracy_decimals: 0
   - platform: template
-    name: "Laufzeit VD Warmwasser"
+    name: "Runtime Compressor DHW"
     entity_category: diagnostic
     id: laufzeit_vd_ww
     unit_of_measurement: "h"
@@ -448,7 +448,7 @@ sensor:
     state_class: total_increasing
     accuracy_decimals: 0
   - platform: template
-    name: "Laufzeit NHZ 1"
+    name: "Runtime Booster 1"
     entity_category: diagnostic
     id: laufzeit_nhz1
     unit_of_measurement: "h"
@@ -456,7 +456,7 @@ sensor:
     state_class: total_increasing
     accuracy_decimals: 0
   - platform: template
-    name: "Laufzeit NHZ 2"
+    name: "Runtime Booster 2"
     entity_category: diagnostic
     id: laufzeit_nhz2
     unit_of_measurement: "h"
@@ -464,7 +464,7 @@ sensor:
     state_class: total_increasing
     accuracy_decimals: 0
   - platform: template
-    name: "Laufzeit NHZ 1+2"
+    name: "Runtime Booster 1+2"
     entity_category: diagnostic
     id: laufzeit_nhz12
     unit_of_measurement: "h"
@@ -472,7 +472,7 @@ sensor:
     state_class: total_increasing
     accuracy_decimals: 0
   - platform: template
-    name: "Laufzeit Passivkuehlung"
+    name: "Runtime Passive Cooling"
     entity_category: diagnostic
     id: laufzeit_passivkuehlung
     unit_of_measurement: "h"
@@ -482,7 +482,7 @@ sensor:
 
   # --- Starts (IWS 0x514): compressor, split 0x4EF0*1000 + 0x4EF1 ---
   - platform: template
-    name: "Verdichter Starts"
+    name: "Compressor Starts"
     entity_category: diagnostic
     id: verdichter_starts
     state_class: total_increasing
@@ -492,7 +492,7 @@ sensor:
   # Internal HP flow (Elster WPVORLAUFIST); may be identical to "Vorlauftemperatur
   # Waermepumpe" (0xFDF3) - kept separate here as process data.
   - platform: template
-    name: "Vorlauftemperatur Prozessdaten"
+    name: "Flow Temperature Process Data"
     entity_category: diagnostic
     id: vorlauftemp_pd
     unit_of_measurement: "°C"
@@ -503,7 +503,7 @@ sensor:
   # --- Whole-system energy balance 13-24M (manager 0x480) ---
   # Previous-year window, rolling -> measurement (not total_increasing).
   - platform: template
-    name: "Gesamt Waermemenge Heizen 13-24M"
+    name: "Total Heat Quantity Heating 13-24M"
     entity_category: diagnostic
     id: gs_wm_heiz_24
     unit_of_measurement: "kWh"
@@ -511,7 +511,7 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
   - platform: template
-    name: "Gesamt Waermemenge Warmwasser 13-24M"
+    name: "Total Heat Quantity DHW 13-24M"
     entity_category: diagnostic
     id: gs_wm_ww_24
     unit_of_measurement: "kWh"
@@ -519,7 +519,7 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
   - platform: template
-    name: "Gesamt Stromverbrauch Heizen 13-24M"
+    name: "Total Power Consumption Heating 13-24M"
     entity_category: diagnostic
     id: gs_strom_heiz_24
     unit_of_measurement: "kWh"
@@ -527,7 +527,7 @@ sensor:
     state_class: measurement
     accuracy_decimals: 0
   - platform: template
-    name: "Gesamt Stromverbrauch Warmwasser 13-24M"
+    name: "Total Power Consumption DHW 13-24M"
     entity_category: diagnostic
     id: gs_strom_ww_24
     unit_of_measurement: "kWh"
@@ -539,19 +539,19 @@ sensor:
   # Note: for 1-12M there is additionally a COP computable on the HA side from
   # heat/power; here the device's displayed values directly.
   - platform: template
-    name: "Effizienz Heizen 12M"
+    name: "Efficiency Heating 12M"
     entity_category: diagnostic
     id: gs_cop_heiz_12
     state_class: measurement
     accuracy_decimals: 2
   - platform: template
-    name: "Effizienz Warmwasser 12M"
+    name: "Efficiency DHW 12M"
     entity_category: diagnostic
     id: gs_cop_ww_12
     state_class: measurement
     accuracy_decimals: 2
   - platform: template
-    name: "Effizienz Warmwasser 13-24M"
+    name: "Efficiency DHW 13-24M"
     entity_category: diagnostic
     id: gs_cop_ww_24
     state_class: measurement
@@ -560,7 +560,7 @@ sensor:
   # --- Process data (IWS 0x514), confirmed 29.07.2026 ---
   # Refrigerant-circuit temperatures
   - platform: template
-    name: "Verdampfertemperatur"
+    name: "Evaporator Temperature"
     entity_category: diagnostic
     id: verdampfertemperatur
     unit_of_measurement: "°C"
@@ -569,7 +569,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Verdichtereintrittstemperatur"
+    name: "Compressor Inlet Temperature"
     entity_category: diagnostic
     id: verdichtereintrittstemp
     unit_of_measurement: "°C"
@@ -578,7 +578,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Heissgastemperatur"
+    name: "Hot Gas Temperature"
     entity_category: diagnostic
     id: heissgastemperatur
     unit_of_measurement: "°C"
@@ -587,7 +587,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Verfluessigertemperatur"
+    name: "Condenser Temperature"
     entity_category: diagnostic
     id: verfluessigertemperatur
     unit_of_measurement: "°C"
@@ -596,7 +596,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Oelsumpftemperatur"
+    name: "Oil Sump Temperature"
     entity_category: diagnostic
     id: oelsumpftemperatur
     unit_of_measurement: "°C"
@@ -606,7 +606,7 @@ sensor:
 
   # Refrigerant-circuit pressures (/100 bar)
   - platform: template
-    name: "Druck Niederdruck"
+    name: "Low Pressure"
     entity_category: diagnostic
     id: druck_niederdruck
     unit_of_measurement: "bar"
@@ -615,7 +615,7 @@ sensor:
     accuracy_decimals: 2
 
   - platform: template
-    name: "Druck Hochdruck"
+    name: "High Pressure"
     entity_category: diagnostic
     id: druck_hochdruck
     unit_of_measurement: "bar"
@@ -624,7 +624,7 @@ sensor:
     accuracy_decimals: 2
 
   - platform: template
-    name: "Wasservolumenstrom"
+    name: "Water Flow Rate"
     entity_category: diagnostic
     id: wp_volumenstrom
     unit_of_measurement: "L/min"
@@ -634,7 +634,7 @@ sensor:
 
   # Inverter / compressor
   - platform: template
-    name: "Strom Inverter"
+    name: "Inverter Current"
     entity_category: diagnostic
     id: strom_inverter
     unit_of_measurement: "A"
@@ -643,7 +643,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Spannung Inverter"
+    name: "Inverter Voltage"
     entity_category: diagnostic
     id: spannung_inverter
     unit_of_measurement: "V"
@@ -653,7 +653,7 @@ sensor:
 
   # actual/target mapping 0x06EB/0x06EC not yet verified (see docs)
   - platform: template
-    name: "Istdrehzahl Verdichter"
+    name: "Compressor Actual Speed"
     entity_category: diagnostic
     id: istdrehzahl_verdichter
     unit_of_measurement: "Hz"
@@ -662,7 +662,7 @@ sensor:
     accuracy_decimals: 0
 
   - platform: template
-    name: "Solldrehzahl Verdichter"
+    name: "Compressor Target Speed"
     entity_category: diagnostic
     id: solldrehzahl_verdichter
     unit_of_measurement: "Hz"
@@ -672,7 +672,7 @@ sensor:
 
   # Heat source (brine)
   - platform: template
-    name: "Waermequelle Vorlauftemperatur"
+    name: "Heat Source Flow Temperature"
     entity_category: diagnostic
     id: wq_vorlauf
     unit_of_measurement: "°C"
@@ -681,7 +681,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Waermequelle Ruecklauftemperatur"
+    name: "Heat Source Return Temperature"
     entity_category: diagnostic
     id: wq_ruecklauf
     unit_of_measurement: "°C"
@@ -690,7 +690,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Waermequellendruck"
+    name: "Heat Source Pressure"
     entity_category: diagnostic
     id: wq_druck
     unit_of_measurement: "bar"
@@ -699,7 +699,7 @@ sensor:
     accuracy_decimals: 1
 
   - platform: template
-    name: "Leistung Waermequellenpumpe"
+    name: "Heat Source Pump Power"
     entity_category: diagnostic
     id: wq_pumpenleistung
     unit_of_measurement: "%"
@@ -708,28 +708,28 @@ sensor:
 
 text_sensor:
   - platform: template
-    name: "Betriebsart"
+    name: "Operating Mode"
     entity_category: diagnostic
     id: betriebsart_text
 
   # --- Cooling: switches/enums (values confirmed 30.07.2026) ---
   - platform: template
-    name: "Kuehlen"
+    name: "Cooling"
     entity_category: diagnostic
     id: kuehlen_status
   - platform: template
-    name: "Kuehlkreis 1"
+    name: "Cooling Circuit 1"
     entity_category: diagnostic
     id: kuehlkreis_status
   - platform: template
-    name: "Kuehlart"
+    name: "Cooling Type"
     entity_category: diagnostic
     id: kuehlart_text
 
   # Minimum temperature HC (0x4EA7) as text: "Off" (special value 0x9000)
   # or the temperature ("18.0 °C"). Set via the slider of the same name.
   - platform: template
-    name: "Minimal Temperatur Heizkreis"
+    name: "Minimum Temperature Heating Circuit"
     entity_category: diagnostic
     id: min_temp_hk_txt
 
@@ -821,13 +821,13 @@ canbus:
                 id(last_betriebsart) = val;
                 std::string mode_name;
                 switch (val) {
-                  case 1: mode_name = "Bereitschaftsbetrieb"; break;
-                  case 2: mode_name = "Programmbetrieb"; break;
-                  case 3: mode_name = "Komfortbetrieb"; break;
-                  case 4: mode_name = "Eco-Betrieb"; break;
-                  case 5: mode_name = "Warmwasserbetrieb"; break;
-                  case 6: mode_name = "Not-Betrieb"; break;
-                  default: mode_name = "Unbekannt (" + std::to_string(val) + ")"; break;
+                  case 1: mode_name = "Standby"; break;
+                  case 2: mode_name = "Program"; break;
+                  case 3: mode_name = "Comfort"; break;
+                  case 4: mode_name = "Eco"; break;
+                  case 5: mode_name = "Hot water"; break;
+                  case 6: mode_name = "Emergency"; break;
+                  default: mode_name = "Unknown (" + std::to_string(val) + ")"; break;
                 }
                 id(betriebsart_text).publish_state(mode_name);
                 // Sync the dropdown only for the 5 controllable options
@@ -862,7 +862,7 @@ canbus:
               // Read sensor -> NaN/unavailable, slider -> 0 (= "Off" position).
               if (idx == 0x4EA7 && (can_id == 0x100 || can_id == 0x601)) {
                 if (val == -28672) {
-                  id(min_temp_hk_txt).publish_state("Aus");
+                  id(min_temp_hk_txt).publish_state("Off");
                   id(min_temp_hk_set).publish_state(0);
                 } else {
                   char buf[16];
@@ -893,15 +893,15 @@ canbus:
                 id(starttemp_kuehlen_set).publish_state(val / 10.0f);
               }
               if (idx == 0x4F08 && (can_id == 0x100 || can_id == 0x601)) {
-                id(kuehlkreis_status).publish_state(val == 1 ? "Ein" : "Aus");
-                id(kuehlkreis_select).publish_state(val == 1 ? "Ein" : "Aus");
+                id(kuehlkreis_status).publish_state(val == 1 ? "On" : "Off");
+                id(kuehlkreis_select).publish_state(val == 1 ? "On" : "Off");
               }
               if (idx == 0x4F05 && (can_id == 0x100 || can_id == 0x601)) {
                 std::string art;
                 switch (val) {
-                  case 1: art = "Flaechenkuehlung"; break;
-                  case 0: art = "Geblaesekuehlung"; break;
-                  default: art = "Unbekannt (" + std::to_string(val) + ")"; break;
+                  case 1: art = "Surface cooling"; break;
+                  case 0: art = "Fan coil cooling"; break;
+                  default: art = "Unknown (" + std::to_string(val) + ")"; break;
                 }
                 id(kuehlart_text).publish_state(art);
                 if (val == 0 || val == 1) id(kuehlart_select).publish_state(art);
@@ -911,8 +911,8 @@ canbus:
               // These are NOT on 0x601: 0x4F07/0x4F00 on 0x180,
               // 0x7A40 on 0x480 (confirmed 30.07.2026).
               if (idx == 0x4F07 && (can_id == 0x100 || can_id == 0x180)) {
-                id(kuehlen_status).publish_state(val == 1 ? "Ein" : "Aus");
-                id(kuehlen_select).publish_state(val == 1 ? "Ein" : "Aus");
+                id(kuehlen_status).publish_state(val == 1 ? "On" : "Off");
+                id(kuehlen_select).publish_state(val == 1 ? "On" : "Off");
               }
               if (idx == 0x4F00 && (can_id == 0x100 || can_id == 0x180)) {
                 id(hysterese_vorlauf_kuehlen).publish_state(val / 10.0f);
@@ -1041,7 +1041,7 @@ canbus:
               if (idx == 0x503A && can_id == 0x480) { id(gs_cop_ww_24).publish_state(val / 100.0f); }
 
               // Raw/decode log only when debug logging is on (switch
-              // "Debug-Logging" -> g_debug). Otherwise normal operation stays quiet.
+              // "Debug Logging" -> g_debug). Otherwise normal operation stays quiet.
               if (id(g_debug)) {
                 ESP_LOGD("wpe_i", "id=0x%03X idx=0x%04X val=%d", can_id, idx, val);
                 char hexdump[32] = {0};
@@ -1331,19 +1331,19 @@ interval:
 # =========================================================================
 select:
   - platform: template
-    name: "Betriebsmodus"
+    name: "Access Mode"
     id: betriebsmodus
     entity_category: config
     optimistic: false
     options:
-      - "0 - Nur lauschen"
-      - "1 - Lesen (Poll)"
-      - "2 - Vollzugriff (Schreiben)"
+      - "0 - Listen only"
+      - "1 - Read (poll)"
+      - "2 - Full access (write)"
     lambda: |-
       switch (id(g_mode)) {
-        case 0: return std::string("0 - Nur lauschen");
-        case 2: return std::string("2 - Vollzugriff (Schreiben)");
-        default: return std::string("1 - Lesen (Poll)");
+        case 0: return std::string("0 - Listen only");
+        case 2: return std::string("2 - Full access (write)");
+        default: return std::string("1 - Read (poll)");
       }
     set_action:
       - lambda: |-
@@ -1352,11 +1352,11 @@ select:
           if (m < 0) m = 0;
           if (m > 2) m = 2;
           id(g_mode) = m;
-          ESP_LOGI("wpe_mode", "Betriebsmodus -> %d", m);
+          ESP_LOGI("wpe_mode", "Access mode -> %d", m);
 
 switch:
   - platform: template
-    name: "Debug-Logging"
+    name: "Debug Logging"
     id: debug_logging
     entity_category: config
     lambda: |-

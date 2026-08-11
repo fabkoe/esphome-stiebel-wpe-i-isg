@@ -27,14 +27,14 @@
 # =========================================================================
 button:
   - platform: template
-    name: "Betriebsart Test-Rueckschreiben"
+    name: "Operating Mode Test Write-Back"
     entity_category: diagnostic
     on_press:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           int16_t v = id(last_betriebsart);
           if (v < 1 || v > 6) {
-            ESP_LOGW("wpe_i", "Betriebsart-Test abgebrochen: kein gueltiger Wert bekannt (%d)", v);
+            ESP_LOGW("wpe_i", "Operating mode test aborted: no valid value known (%d)", v);
             return;
           }
           uint8_t val_hi = (v >> 8) & 0xFF;
@@ -46,7 +46,7 @@ button:
                    write_betriebsart[0], write_betriebsart[1], write_betriebsart[2], write_betriebsart[3],
                    write_betriebsart[4], write_betriebsart[5], write_betriebsart[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Betriebsart-Test-Schreiben gesendet: Wert=%d", v);
+          ESP_LOGI("wpe_i", "Operating mode test write sent: value=%d", v);
 
 # =========================================================================
 # Operating-mode control (index 0x4F1B) - writing confirmed on 19.07.2026:
@@ -55,27 +55,27 @@ button:
 # =========================================================================
 select:
   - platform: template
-    name: "Betriebsart setzen"
+    name: "Set Operating Mode"
     entity_category: config
     id: betriebsart_select
     optimistic: false
     options:
-      - "Bereitschaftsbetrieb"
-      - "Programmbetrieb"
-      - "Komfortbetrieb"
-      - "Eco-Betrieb"
-      - "Warmwasserbetrieb"
+      - "Standby"
+      - "Program"
+      - "Comfort"
+      - "Eco"
+      - "Hot water"
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           uint8_t v = 0;
-          if (x == "Bereitschaftsbetrieb") v = 1;
-          else if (x == "Programmbetrieb") v = 2;
-          else if (x == "Komfortbetrieb") v = 3;
-          else if (x == "Eco-Betrieb") v = 4;
-          else if (x == "Warmwasserbetrieb") v = 5;
+          if (x == "Standby") v = 1;
+          else if (x == "Program") v = 2;
+          else if (x == "Comfort") v = 3;
+          else if (x == "Eco") v = 4;
+          else if (x == "Hot water") v = 5;
           if (v == 0) {
-            ESP_LOGW("wpe_i", "Betriebsart setzen: unbekannte Option '%s'", x.c_str());
+            ESP_LOGW("wpe_i", "Set operating mode: unknown option '%s'", x.c_str());
             return;
           }
           std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x1B, 0x00, v};
@@ -84,7 +84,7 @@ select:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Betriebsart gesetzt auf: %s (%d)", x.c_str(), v);
+          ESP_LOGI("wpe_i", "Operating mode set to: %s (%d)", x.c_str(), v);
 
   # =======================================================================
   # Cooling circuit 1 on/off (0x4F08) + cooling type (0x4F05), mixer module 0x601.
@@ -96,24 +96,24 @@ select:
   # Enum values confirmed by reading 30.07.2026 (1=on/surface, 0=off/fan).
   # =======================================================================
   - platform: template
-    name: "Kuehlkreis 1 setzen"
+    name: "Set Cooling Circuit 1"
     entity_category: config
     id: kuehlkreis_select
     optimistic: false
     options:
-      - "Aus"
-      - "Ein"
+      - "Off"
+      - "On"
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
-          uint8_t v = (x == "Ein") ? 1 : 0;
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
+          uint8_t v = (x == "On") ? 1 : 0;
           std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x08, 0x00, v};
           id(my_canbus).send_data(0x680, false, w);
           char txbuf[24];
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Kuehlkreis 1 gesetzt auf: %s (%d)", x.c_str(), v);
+          ESP_LOGI("wpe_i", "Cooling circuit 1 set to: %s (%d)", x.c_str(), v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -121,24 +121,24 @@ select:
           id(my_canbus).send_data(0x680, false, rb);
 
   - platform: template
-    name: "Kuehlart setzen"
+    name: "Set Cooling Type"
     entity_category: config
     id: kuehlart_select
     optimistic: false
     options:
-      - "Geblaesekuehlung"
-      - "Flaechenkuehlung"
+      - "Fan coil cooling"
+      - "Surface cooling"
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
-          uint8_t v = (x == "Flaechenkuehlung") ? 1 : 0;
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
+          uint8_t v = (x == "Surface cooling") ? 1 : 0;
           std::vector<uint8_t> w = {0xC0, 0x01, 0xFA, 0x4F, 0x05, 0x00, v};
           id(my_canbus).send_data(0x680, false, w);
           char txbuf[24];
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Kuehlart gesetzt auf: %s (%d)", x.c_str(), v);
+          ESP_LOGI("wpe_i", "Cooling type set to: %s (%d)", x.c_str(), v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -155,24 +155,24 @@ select:
   # (0x180) also device-confirmed (poll is answered).
   # =======================================================================
   - platform: template
-    name: "Kuehlen setzen"
+    name: "Set Cooling"
     entity_category: config
     id: kuehlen_select
     optimistic: false
     options:
-      - "Aus"
-      - "Ein"
+      - "Off"
+      - "On"
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
-          uint8_t v = (x == "Ein") ? 1 : 0;
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
+          uint8_t v = (x == "On") ? 1 : 0;
           std::vector<uint8_t> w = {0x32, 0x00, 0xFA, 0x4F, 0x07, 0x00, v};
           id(my_canbus).send_data(0x680, false, w);
           char txbuf[24];
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Kuehlen gesetzt auf: %s (%d)", x.c_str(), v);
+          ESP_LOGI("wpe_i", "Cooling set to: %s (%d)", x.c_str(), v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -196,7 +196,7 @@ select:
 # =========================================================================
 number:
   - platform: template
-    name: "Steigung Heizkurve setzen"
+    name: "Set Heating Curve Slope"
     entity_category: config
     id: steigung_heizkurve_set
     optimistic: false
@@ -206,7 +206,7 @@ number:
     unit_of_measurement: ""
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           int16_t v = (int16_t) round(x * 100.0f);
           uint8_t val_hi = (v >> 8) & 0xFF;
           uint8_t val_lo = v & 0xFF;
@@ -216,7 +216,7 @@ number:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Steigung Heizkurve gesetzt auf: %.2f (roh=%d)", x, v);
+          ESP_LOGI("wpe_i", "Heating curve slope set to: %.2f (raw=%d)", x, v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -236,7 +236,7 @@ number:
   # the heating curve, but avoid extremes. Device min/max unknown.
   # =======================================================================
   - platform: template
-    name: "Komforttemperatur Heizkreis setzen"
+    name: "Set Comfort Temperature Heating Circuit"
     entity_category: config
     id: komforttemperatur_hk_set
     optimistic: false
@@ -247,7 +247,7 @@ number:
     device_class: temperature
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           int16_t v = (int16_t) round(x * 10.0f);
           uint8_t val_hi = (v >> 8) & 0xFF;
           uint8_t val_lo = v & 0xFF;
@@ -257,7 +257,7 @@ number:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Komforttemperatur gesetzt auf: %.1f (roh=%d)", x, v);
+          ESP_LOGI("wpe_i", "Comfort temperature set to: %.1f (raw=%d)", x, v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -267,7 +267,7 @@ number:
           id(my_canbus).send_data(0x680, false, rb);
 
   - platform: template
-    name: "Eco-Temperatur Heizkreis setzen"
+    name: "Set Eco Temperature Heating Circuit"
     entity_category: config
     id: ecotemperatur_hk_set
     optimistic: false
@@ -278,7 +278,7 @@ number:
     device_class: temperature
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           int16_t v = (int16_t) round(x * 10.0f);
           uint8_t val_hi = (v >> 8) & 0xFF;
           uint8_t val_lo = v & 0xFF;
@@ -288,7 +288,7 @@ number:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Eco-Temperatur gesetzt auf: %.1f (roh=%d)", x, v);
+          ESP_LOGI("wpe_i", "Eco temperature set to: %.1f (raw=%d)", x, v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -302,7 +302,7 @@ number:
   # Anything below 10 is caught by the set logic as "Off", so an
   # invalid 0.1-9.9 degC is never sent.
   - platform: template
-    name: "Minimal Temperatur Heizkreis setzen"
+    name: "Set Minimum Temperature Heating Circuit"
     entity_category: config
     id: min_temp_hk_set
     optimistic: false
@@ -313,12 +313,12 @@ number:
     device_class: temperature
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           uint16_t raw;
           const char* mode;
           if (x < 10.0f) {            // Slider < 10 = "Off" (0x9000)
             raw = 0x9000;
-            mode = "Aus";
+            mode = "Off";
           } else {
             raw = (uint16_t)((int16_t) round(x * 10.0f));
             mode = "Temp";
@@ -331,7 +331,7 @@ number:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Minimal Temperatur gesetzt (%s) auf: %.1f", mode, x);
+          ESP_LOGI("wpe_i", "Minimum temperature set (%s) to: %.1f", mode, x);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -343,7 +343,7 @@ number:
   # The device snaps to steps of 5 on the display (18% sent -> 20%
   # stored, device-verified in the log) -> step 5.
   - platform: template
-    name: "Raumeinfluss Heizkreis setzen"
+    name: "Set Room Influence Heating Circuit"
     entity_category: config
     id: raumeinfluss_hk_set
     optimistic: false
@@ -353,7 +353,7 @@ number:
     unit_of_measurement: "%"
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           int16_t v = (int16_t) round(x);
           uint8_t val_hi = (v >> 8) & 0xFF;
           uint8_t val_lo = v & 0xFF;
@@ -363,7 +363,7 @@ number:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Raumeinfluss gesetzt auf: %.0f%% (roh=%d)", x, v);
+          ESP_LOGI("wpe_i", "Room influence set to: %.0f%% (raw=%d)", x, v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -389,7 +389,7 @@ number:
   # condensation risk at the screed; when in doubt keep it flat.
   # =======================================================================
   - platform: template
-    name: "Raumsolltemperatur Kuehlen setzen"
+    name: "Set Room Setpoint Temperature Cooling"
     entity_category: config
     id: raumsolltemp_kuehlen_set
     optimistic: false
@@ -400,7 +400,7 @@ number:
     device_class: temperature
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           int16_t v = (int16_t) round(x * 10.0f);
           uint8_t val_hi = (v >> 8) & 0xFF;
           uint8_t val_lo = v & 0xFF;
@@ -410,7 +410,7 @@ number:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Raumsolltemperatur Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
+          ESP_LOGI("wpe_i", "Room setpoint temperature cooling set to: %.1f (raw=%d)", x, v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -418,7 +418,7 @@ number:
           id(my_canbus).send_data(0x680, false, rb);
 
   - platform: template
-    name: "Steigung Kuehlkurve setzen"
+    name: "Set Cooling Curve Slope"
     entity_category: config
     id: steigung_kuehlkurve_set
     optimistic: false
@@ -428,7 +428,7 @@ number:
     unit_of_measurement: ""
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           int16_t v = (int16_t) round(x * 100.0f);
           uint8_t val_hi = (v >> 8) & 0xFF;
           uint8_t val_lo = v & 0xFF;
@@ -438,7 +438,7 @@ number:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Steigung Kuehlkurve gesetzt auf: %.2f (roh=%d)", x, v);
+          ESP_LOGI("wpe_i", "Cooling curve slope set to: %.2f (raw=%d)", x, v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -446,7 +446,7 @@ number:
           id(my_canbus).send_data(0x680, false, rb);
 
   - platform: template
-    name: "Starttemperatur Kuehlen setzen"
+    name: "Set Start Temperature Cooling"
     entity_category: config
     id: starttemp_kuehlen_set
     optimistic: false
@@ -457,7 +457,7 @@ number:
     device_class: temperature
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           int16_t v = (int16_t) round(x * 10.0f);
           uint8_t val_hi = (v >> 8) & 0xFF;
           uint8_t val_lo = v & 0xFF;
@@ -467,7 +467,7 @@ number:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Starttemperatur Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
+          ESP_LOGI("wpe_i", "Start temperature cooling set to: %.1f (raw=%d)", x, v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
@@ -482,7 +482,7 @@ number:
   # Limits = device range (F8/F9: 4.0-10.0 K).
   # =======================================================================
   - platform: template
-    name: "Hysterese Vorlauf Kuehlen setzen"
+    name: "Set Flow Hysteresis Cooling"
     entity_category: config
     id: hysterese_vorlauf_kuehlen_set
     optimistic: false
@@ -492,7 +492,7 @@ number:
     unit_of_measurement: "K"
     set_action:
       - lambda: |-
-          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Schreiben blockiert - Betriebsmodus %d, Vollzugriff (2) noetig", id(g_mode)); return; }
+          if (id(g_mode) < 2) { ESP_LOGW("wpe_mode", "Write blocked - access mode %d, full access (2) required", id(g_mode)); return; }
           int16_t v = (int16_t) round(x * 10.0f);
           uint8_t val_hi = (v >> 8) & 0xFF;
           uint8_t val_lo = v & 0xFF;
@@ -502,7 +502,7 @@ number:
           snprintf(txbuf, sizeof(txbuf), "%02X %02X %02X %02X %02X %02X %02X",
                    w[0], w[1], w[2], w[3], w[4], w[5], w[6]);
           ESP_LOGI("wpe_i", "TX id=0x680 raw=%s", txbuf);
-          ESP_LOGI("wpe_i", "Hysterese Vorlauf Kuehlen gesetzt auf: %.1f (roh=%d)", x, v);
+          ESP_LOGI("wpe_i", "Flow hysteresis cooling set to: %.1f (raw=%d)", x, v);
       - delay: 250ms
       - lambda: |-
           if (id(g_mode) < 2) return;  // write guard (read-back)
