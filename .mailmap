@@ -1,0 +1,9 @@
+# Canonical author identities for this repository.
+# Git and GitHub use this file to fold commit identities together when
+# computing history, `git shortlog`, blame and the contributor graph.
+#
+# Any commit that carries the noreply@anthropic.com address (e.g. an
+# automated "Claude <noreply@anthropic.com>" identity from a tooling
+# session) is mapped to the sole human author, so it never appears as a
+# separate contributor.
+fabkoe <fabian@solf.it> <noreply@anthropic.com>
