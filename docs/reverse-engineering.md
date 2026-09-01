@@ -129,6 +129,13 @@ Verifikations-Logs bleiben hier in dieser Doku.
 5. Bei Bedarf: aktives Polling für den neuen Index testen (immer zuerst über CAN-ID `0x680`, nie über belegte IDs wie `0x100`)
 6. **Schreib-Telegramme werden jetzt mitgeloggt** (seit 29.07.2026): die drei Schreib-Aktionen (Betriebsart-Testbutton, Betriebsart-Select, Heizkurve-Number) geben ihr gesendetes Frame als `TX id=0x680 raw=..` aus. So lässt sich das selbst gesendete Telegramm direkt mit dem vom Display gesnifften vergleichen. Die ~40 Poll-Sends loggen bewusst KEINE Rohbytes (Log-Spam; ihre Antworten werden ohnehin geloggt).
 
+> **Langzeit-Mitschnitt statt Log-Fenster:** Für Beobachtung über Stunden/Tage
+> gibt es den optionalen CAN-Firehose (`esphome/wpe-i-sniffer.yaml`), der
+> Wertänderungen aller Indizes per MQTT in InfluxDB/Grafana schreibt. Statt
+> Foto-Zeitfenster im Log zu suchen, liest man in einer Grafana-Tabelle direkt
+> ab, welcher `idx`/`can_id` sich beim Display-Klick bewegt hat. Aufbau &
+> Host-Stack: [`can-logging.md`](can-logging.md).
+
 ## Nächste Ziele: Heizkurve, Kühlkurve, Betriebsart (inkl. Schreibzugriff)
 
 Zusätzlich zum reinen Auslesen soll hier künftig auch **verstellt** werden können (nicht nur gelesen). Das erfordert einen zusätzlichen Vorsichts-Schritt gegenüber den bisherigen Werten.

@@ -1,0 +1,66 @@
+# =========================================================================
+# OPTIONAL reverse-engineering add-on: CAN firehose to MQTT.
+#
+# Streams CAN value CHANGES (and, with the RAW switch, every value-bearing
+# frame) as InfluxDB line protocol to an MQTT topic, so you can record and
+# analyse the bus over long periods in InfluxDB + Grafana - the classic RE
+# loop: change a value at the WPM display and see which index/CAN-ID moves.
+#
+# This is NOT part of the released read/write firmware. Enable it only for
+# RE sessions by adding it to the packages block of your local manifest:
+#
+#   packages:
+#     wpe_i:         !include wpe-i-package.yaml
+#     wpe_i_writes:  !include wpe-i-writes.yaml   # optional write entities
+#     wpe_i_sniffer: !include wpe-i-sniffer.yaml  # <-- this add-on
+#
+# Then flash. Two switches appear in Home Assistant:
+#   - "RE Sniffer (changes)" : emit one line per index whenever its value
+#                              changes (default ON here). Low bus/net load.
+#   - "RE Sniffer RAW"       : emit a line for EVERY value-bearing frame
+#                              (default OFF). Use for short exhaustive
+#                              captures; can be chatty on a busy bus.
+#
+# MQTT topic:      wpe-i/can
+# Payload (Influx line protocol, one measurement per frame):
+#   wpe_can,can_id=180,idx=000C val=277i,delta=2i,cmd=34i,changed=1i,hex="22000C0115..."
+# Fields: val (int16), delta (val - previous), cmd (raw byte 0),
+#         changed (1/0), hex (raw frame bytes). Tags: can_id, idx (hex).
+#
+# The native ESPHome API to Home Assistant stays active in parallel; MQTT
+# is used only for the RE firehose (its own HA discovery is disabled).
+#
+# See docs/can-logging.md for the host-side stack (Mosquitto, Telegraf,
+# InfluxDB, Grafana) and tools/telegraf-wpe-i.conf for a ready config.
+# =========================================================================
+
+mqtt:
+  id: mqtt_client
+  broker: !secret mqtt_broker
+  port: 1883
+  username: !secret mqtt_username
+  password: !secret mqtt_password
+  # Keep the native HA API as the primary channel; MQTT here is only the
+  # RE firehose, so suppress MQTT's own entity discovery / state spam.
+  discovery: false
+  topic_prefix: wpe-i
+
+globals:
+  # Last seen value per (can_id, idx) key, for change detection.
+  - id: can_last_value
+    type: std::map<uint32_t, int16_t>
+    restore_value: no
+
+switch:
+  - platform: template
+    name: "RE Sniffer (changes)"
+    id: sniffer_enable_switch
+    icon: mdi:magnify-scan
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+  - platform: template
+    name: "RE Sniffer RAW (all frames)"
+    id: sniffer_raw_switch
+    icon: mdi:fire
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF

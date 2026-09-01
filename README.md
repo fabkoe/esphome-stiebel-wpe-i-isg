@@ -175,12 +175,16 @@ steht in [`docs/reverse-engineering.md`](docs/reverse-engineering.md).
 esphome/
   wpe-i-package.yaml        # Kern: Sensoren + Poller + Betriebsmodus (read-only, Package-Ziel)
   wpe-i-writes.yaml         # Schreib-Entities (nur Voll-Build; weglassen = read-only)
+  wpe-i-sniffer.yaml        # optionaler RE-Firehose: CAN → MQTT (InfluxDB/Grafana)
   wpe-i-manifest.yaml       # schlanke lokale Flash-Config (bindet Package + Writes + WLAN)
-  secrets.yaml.example      # Vorlage für WLAN- + OTA-Zugangsdaten
+  secrets.yaml.example      # Vorlage für WLAN- + OTA- (+ optional MQTT-) Zugangsdaten
 docs/
   reverse-engineering.md    # Protokoll-Doku, Wertetabellen, TODOs
+  can-logging.md            # CAN-Langzeit-Mitschnitt (MQTT → InfluxDB → Grafana)
   wpm4-menue.md             # Menübaum des WPM4-Displays (Coverage-Legende)
   hardware.md               # Board Waveshare ESP32-S3-RS485-CAN (Pinout, Links)
+tools/
+  telegraf-wpe-i.conf       # Telegraf-Config: MQTT-Firehose → InfluxDB v2
 archive/
   wpe-can-sniffer-v1.yaml   # historisch: erster Sniffer (MQTT-basiert)
   wpe-can-sniffer-v2.yaml   # historisch: Sniffer über ESPHome-Logs
