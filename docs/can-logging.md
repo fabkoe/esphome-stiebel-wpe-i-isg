@@ -107,6 +107,41 @@ from(bucket: "wpe_i")
    aus dem Displaywert ableiten, dann als Sensor ins Manifest mappen.
 4. RAW wieder aus, „changes" reicht für die Dauerbeobachtung.
 
+## 6. Womit anfangen – konkrete RE-Ziele
+
+Aus den offenen Punkten in [`reverse-engineering.md`](reverse-engineering.md).
+Vorgehen jeweils: „RE Sniffer (changes)" an lassen, ggf. für ein enges
+Zeitfenster RAW an, den genannten **Menüpfad** am WPM-Display aufrufen bzw. den
+Wert ändern, dann in der Grafana-„delta≠0"-Tabelle den `idx`/`can_id` ablesen.
+
+**Gut zum Einstieg (Kandidat/CAN-ID bereits bekannt):**
+
+| Ziel | Kandidat | Vorgehen mit dem Firehose |
+|---|---|---|
+| Mischermodul-Wert (vmtl. Vorlauf HK2) | `idx=4EB4` auf `can_id=601` (~19,1–19,2 °C) | direkt in Grafana filtern und mit HK2-Vorlauf am Display vergleichen |
+| Offener 0x401-Wert | `idx=4EB3` auf `401`/`100` (val=1) | beobachten, wann er kippt; Bedeutung aus Kontext |
+| Ist-/Solldrehzahl Verdichter | `idx=06EB` / `06EC` | **bei laufendem** Verdichter mitschneiden (im Test standen beide auf 0) |
+| Leistung Kühlen-Grundeinst. | `idx=7A40` auf Modul `480` | Lesewert bestätigen; Schreib-Modul separat per No-Op einkreisen |
+
+**Neue Werte finden (Kandidat noch unbekannt → RAW + Menü-Klick):**
+
+- **Kühlen-Live-Werte** – Info→Anlage→Kühlen: Ist/Soll, KK1 Ist/Soll.
+- **Taupunkt FET1 / Raum-Taupunkt** (= ISG-Reg 506) – relevant fürs Kühlen.
+- **Heizung-Unterwerte** – HK1 Ist/Soll, Vorlauf NHZ, Festwertsoll.
+- **Warmwasser-Einstellungen** – Komfort/Eco WW, Hysterese, Stufen.
+- **Gemittelte/gedämpfte Außentemperatur** (= C-Punkt „gemittelte AT").
+- **Meldungsliste** (14 Einträge) inhaltlich zuordnen – Altmeldung vs. aktiv.
+
+**Abgeleitete Größen (kein neuer Index, aus vorhandenen rechnen):**
+
+- **Spreizung Heizung (ΔT)** = Vorlauf WP (`FDF3`) − Rücklauf (`0016`).
+- **Momentane therm. Heizleistung** ≈ `V̇·ΔT·0,0697` – braucht Volumenstrom.
+- **Momentaner COP** = P_therm / P_el – **P_el momentan fehlt noch**.
+
+Der Firehose ersetzt hier vor allem das mühsame Foto-/Log-Zeitfenster-Abgleichen:
+Der `delta`-Sprung beim Menü-Klick zeigt den Index sofort. Bestätigte Indizes
+dann wie gewohnt als Sensor ins Manifest mappen (Skalierung `/10` bzw. `/100`).
+
 ## Grenzen / Sicherheit
 
 - Reiner **Lesebetrieb** – der Sniffer sendet nichts auf den CAN-Bus.
