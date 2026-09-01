@@ -15,6 +15,10 @@
 packages:
   wpe_i: !include wpe-i-package.yaml
   wpe_i_writes: !include wpe-i-writes.yaml
+  # Optional reverse-engineering firehose (CAN -> MQTT -> InfluxDB/Grafana).
+  # Uncomment for RE sessions; needs the mqtt_* keys in secrets.yaml.
+  # See docs/can-logging.md.
+  # wpe_i_sniffer: !include wpe-i-sniffer.yaml
 
 wifi:
   ssid: !secret wifi_ssid

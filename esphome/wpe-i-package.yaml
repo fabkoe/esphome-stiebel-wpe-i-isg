@@ -771,6 +771,39 @@ canbus:
                 val = (int16_t)((x[3] << 8) | x[4]);
               }
 
+              // --- RE sniffer (optional) -------------------------------
+              // Streams value changes (and, with the RAW switch, every
+              // value-bearing frame) as InfluxDB line protocol to MQTT for
+              // offline analysis in InfluxDB + Grafana. Runs for EVERY index,
+              // including still-unmapped ones - that is the reverse-engineering
+              // firehose. Compiled in only when the MQTT component is present
+              // (RE build via wpe-i-sniffer.yaml); the released read/write
+              // build has no MQTT and drops this block entirely.
+              #ifdef USE_MQTT
+              if (id(sniffer_enable_switch).state || id(sniffer_raw_switch).state) {
+                uint32_t key = ((uint32_t) can_id << 16) | idx;
+                auto it = id(can_last_value).find(key);
+                bool changed = (it == id(can_last_value).end()) || (it->second != val);
+                if (id(sniffer_raw_switch).state || changed) {
+                  int16_t prev = (it == id(can_last_value).end()) ? val : it->second;
+                  char hexbuf[2 * 8 + 1];
+                  size_t n = x.size() > 8 ? 8 : x.size();
+                  for (size_t i = 0; i < n; i++) snprintf(hexbuf + 2 * i, 3, "%02X", x[i]);
+                  hexbuf[2 * n] = '\0';
+                  // measurement: wpe_can; tags: can_id, idx; fields: val,
+                  // delta, cmd, changed, hex. No timestamp -> Telegraf/Influx
+                  // stamps the receive time (bus latency is negligible here).
+                  char line[176];
+                  snprintf(line, sizeof(line),
+                    "wpe_can,can_id=%03X,idx=%04X val=%di,delta=%di,cmd=%di,changed=%di,hex=\"%s\"",
+                    (unsigned) can_id, (unsigned) idx, (int) val,
+                    (int) (val - prev), (int) x[0], changed ? 1 : 0, hexbuf);
+                  id(mqtt_client).publish("wpe-i/can", line);
+                }
+                id(can_last_value)[key] = val;
+              }
+              #endif
+
               // --- AUSSENTEMP: index 0x000C on 0x180 or 0x100 ---
               if (idx == 0x000C && (can_id == 0x180 || can_id == 0x100)) {
                 id(aussentemperatur).publish_state(val / 10.0f);
